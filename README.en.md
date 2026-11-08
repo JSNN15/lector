@@ -57,7 +57,9 @@ Locally: `python3 -m http.server 8770`. Live scale reading uses [nv-gateway](htt
 
 ## Credits
 
-Sample photos (their authors' licenses): *Pressure gauge* (zimpenfish), *Back-Entry-Dial-Thermometer* (Public Domain Photos), *residual pressure gauge* (yawning hunter), CC BY 2.0 via Openverse.
+Sample photos (their authors' licenses): *Pressure gauge* (zimpenfish), *Back-Entry-Dial-Thermometer* (Public Domain Photos), *residual pressure gauge* (yawning hunter), *Under Pressure* (ThenAndAgain), *Pressure* (BinaryApe), *Increasing Pressure* and *That's all she's got captain!* (flattop341), *Gauge on a U-Boat* (quinet), CC BY 2.0 via Openverse.
+
+In 7 of the 8 samples the geometric reading matches the AI's independent estimate. On the submarine gauge (kg/cm²) they disagree: geometry reads 0.63, which is correct, and the AI estimated 0.55. That is why the page flags "Revisar" (check) instead of picking one.
 
 ---
 

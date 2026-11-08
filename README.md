@@ -55,7 +55,9 @@ En local: `python3 -m http.server 8770`. La lectura de escala en vivo usa [nv-ga
 
 ## Créditos
 
-Fotos de ejemplo (licencias de sus autores): *Pressure gauge* (zimpenfish), *Back-Entry-Dial-Thermometer* (Public Domain Photos), *residual pressure gauge* (yawning hunter), CC BY 2.0 vía Openverse.
+Fotos de ejemplo (licencias de sus autores): *Pressure gauge* (zimpenfish), *Back-Entry-Dial-Thermometer* (Public Domain Photos), *residual pressure gauge* (yawning hunter), *Under Pressure* (ThenAndAgain), *Pressure* (BinaryApe), *Increasing Pressure* y *That's all she's got captain!* (flattop341), *Gauge on a U-Boat* (quinet), CC BY 2.0 vía Openverse.
+
+De los 8 ejemplos, en 7 la lectura geométrica coincide con la estimación independiente de la IA. En el manómetro del submarino (kg/cm²) no coinciden: la geometría marca 0,63, que es lo correcto, y la IA estimó 0,55. Por eso la página avisa "Revisar" en vez de elegir una.
 
 ---
 
