@@ -25,16 +25,16 @@ Preguntarle a un modelo de visión "¿cuánto marca la aguja?" falla seguido: co
 flowchart LR
     A[Foto] --> B["Nemotron VL<br/>números impresos + posición x,y"]
     B --> C["RANSAC sobre tríos<br/>círculo + recta ángulo→valor"]
-    C -->|descarta la 2.ª escala| D["Barrido radial<br/>720 ángulos, 0,4–0,88 r"]
+    C -->|descarta la 2.ª escala| D["Barrido radial<br/>la línea que llega más lejos"]
     D --> E{¿calza con la<br/>estimación de la IA?}
     E -->|sí| F[Lectura + alarma + registro]
-    E -->|no, > 6 % del rango| G[Revisar: arrastrar la aguja]
+    E -->|no, > 6 % del rango| G[Revisar: punta opuesta, otra candidata o a mano]
 ```
 
 1. **IA, una vez por instrumento.** Nemotron VL entrega cada número de la escala con su posición (0-1000) y además una estimación propia de la lectura.
 2. **Geometría.** Con tríos de números, RANSAC ajusta la circunferencia del dial y una recta ángulo-valor. Los números que no calzan (una segunda escala, un logo) quedan fuera.
-3. **Visión clásica.** Un barrido radial busca la dirección más contrastada que sale del eje; entre los candidatos dentro del rango, la estimación de la IA decide cuál es la punta y cuál la cola.
-4. **Control cruzado.** Si la lectura geométrica y la de la IA difieren en más de 6 % del rango, la página pide revisar y deja arrastrar la punta.
+3. **Visión clásica.** Un barrido radial de 720 direcciones busca la línea que sale continua del eje y llega más lejos hacia la escala. Así distingue la punta del contrapeso, que también es oscuro pero se corta antes. La tolerancia lateral va en píxeles para soportar un centro estimado con algo de error. La estimación de la IA no elige la aguja: solo sirve de control.
+4. **Control cruzado.** Si la lectura geométrica y la de la IA difieren en más de 6 % del rango, la página avisa. El panel «¿La lectura está mal?» corrige y muestra el error de la lectura automática.
 5. **Cámara fija.** Con la cámara quieta, la IA calibra una sola vez y el seguimiento de la aguja corre en el navegador muchas veces por segundo, sin más llamadas.
 
 ## Límites
@@ -57,7 +57,9 @@ En local: `python3 -m http.server 8770`. La lectura de escala en vivo usa [nv-ga
 
 Fotos de ejemplo (licencias de sus autores): *Pressure gauge* (zimpenfish), *Back-Entry-Dial-Thermometer* (Public Domain Photos), *residual pressure gauge* (yawning hunter), *Under Pressure* (ThenAndAgain), *Pressure* (BinaryApe), *Increasing Pressure* y *That's all she's got captain!* (flattop341), *Gauge on a U-Boat* (quinet), CC BY 2.0 vía Openverse.
 
-De los 8 ejemplos, en 7 la lectura geométrica coincide con la estimación independiente de la IA. En el manómetro del submarino (kg/cm²) no coinciden: la geometría marca 0,63, que es lo correcto, y la IA estimó 0,55. Por eso la página avisa "Revisar" en vez de elegir una.
+De los 8 ejemplos, en 6 la lectura geométrica coincide con la estimación independiente de la IA. En los otros dos (el manómetro de neumáticos y el del submarino) la aguja está en 0 y la IA estimó 65 y 0,55: tomó el contrapeso por la punta. La geometría los lee bien y la página avisa que no coinciden.
+
+La primera versión del barrido también confundía el contrapeso con la punta en esos dos casos, porque elegía la línea más oscura cerca del eje. Ahora mide el alcance de cada línea y, si aun así se equivoca, el panel «¿La lectura está mal?» permite usar la punta opuesta, probar otra candidata o ajustar a mano, y muestra el error de la lectura automática.
 
 ---
 
