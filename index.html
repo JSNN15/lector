@@ -1,396 +1,1548 @@
 <!doctype html>
 <html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lector de instrumentos</title>
-<meta name="description" content="Foto de un manómetro o termómetro de aguja y la lectura sale en número. La IA de NVIDIA lee la escala una vez; después la visión clásica sigue la aguja sola.">
-<meta property="og:title" content="Lector de instrumentos · IA de NVIDIA + visión clásica">
-<meta property="og:description" content="La IA lee la escala una vez, la geometría arma el dial y la visión clásica sigue la aguja. Instrumentos analógicos convertidos en datos.">
-<meta property="og:image" content="https://jsnn15.github.io/img/lector.jpg">
-<meta name="twitter:card" content="summary_large_image">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-:root{--bg:#0a0b0d;--panel:#121418;--panel2:#181b21;--line:#252a33;--fg:#ebeef2;--muted:#959cab;--acc:#ffb020;--nv:#76b900;--red:#ff4d3d;--cy:#3fd5f0;--yel:#ffe066;--ok:#3ccf7a;
-  --display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;--sans:"Work Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;color-scheme:dark}
-*{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:16px;line-height:1.5}
-a{color:inherit}
-.in{max-width:80rem;margin-inline:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-nav{border-bottom:1px solid var(--line)}
-nav .in{display:flex;justify-content:space-between;align-items:center;padding-block:10px;gap:12px}
-.brand{display:flex;align-items:center;gap:9px;font-weight:600;text-decoration:none}
-nav a.s{font-family:var(--mono);font-size:.76rem;color:var(--muted);text-decoration:none}
-@media (max-width:600px){nav .lg{display:none}}
-header .in{padding-block:22px 14px;display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:14px}
-h1{font-family:var(--display);font-weight:800;text-transform:uppercase;font-size:clamp(2.2rem,5vw,3.6rem);line-height:.9;margin:0}
-h1 em{font-style:normal;color:var(--acc)}
-.sub{color:var(--muted);margin:6px 0 0;max-width:56ch}
-.nvb{font-family:var(--mono);font-size:.72rem;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:4px 8px}
-.nvb b{color:var(--nv)}
-.steps{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
-.st{font-family:var(--mono);font-size:.74rem;padding:5px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted);display:flex;align-items:center;gap:6px;transition:all .3s}
-.st i{width:8px;height:8px;border-radius:50%;background:var(--line);display:inline-block}
-.st.on{color:var(--fg);border-color:#4a4f5a}.st.on i{background:var(--acc);box-shadow:0 0 8px var(--acc)}
-.st.done i{background:var(--ok)}
-.tool{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:14px;padding-bottom:20px}
-@media (max-width:900px){.tool{grid-template-columns:minmax(0,1fr)}}
-.stage{position:relative;background:#000;border:1px solid var(--line);border-radius:12px;overflow:hidden;display:grid;place-items:center;min-height:320px;touch-action:none}
-.stage canvas{display:block;max-width:100%;max-height:72vh;width:auto;height:auto}
-.stage video{display:none}
-.hint{position:absolute;left:10px;bottom:10px;font-family:var(--mono);font-size:.72rem;background:rgba(0,0,0,.72);border:1px solid var(--line);padding:4px 8px;border-radius:4px;color:var(--muted)}
-.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
-.btn{font:inherit;font-size:.9rem;font-weight:600;padding:9px 14px;border-radius:7px;border:1px solid var(--line);background:var(--panel2);color:var(--fg);cursor:pointer;display:inline-flex;align-items:center;gap:7px}
-.btn.p{background:var(--acc);border-color:var(--acc);color:#1b1200}
-.btn.on{border-color:var(--red);color:#ffb1a8}
-.btn:disabled{opacity:.5;cursor:default}
-.sp{flex:1}
-.thumbs{display:flex;gap:8px;padding-top:10px;overflow-x:auto}
-.thumbs button{flex:0 0 auto;width:96px;aspect-ratio:1;border-radius:8px;overflow:hidden;border:2px solid var(--line);padding:0;cursor:pointer;background:#000}
-.thumbs button.on{border-color:var(--acc)}
-.thumbs img{width:100%;height:100%;object-fit:cover;display:block}
-.side{display:flex;flex-direction:column;gap:12px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
-.read{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
-.val{font-family:var(--display);font-size:clamp(3.6rem,8vw,5.4rem);line-height:.9;font-weight:800;color:var(--fg);font-variant-numeric:tabular-nums}
-.unit{font-family:var(--mono);color:var(--muted);font-size:1rem}
-.lim{font-family:var(--mono);font-size:.74rem;font-weight:600;padding:4px 9px;border-radius:4px;margin-left:auto}
-.lim.ok{background:#103020;color:#9ff0c0}.lim.hi,.lim.lo{background:#3d0f0b;color:#ffb1a8}
-.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:.88rem;margin-top:10px}
-.kv dt{color:var(--muted)}.kv dd{margin:0;font-family:var(--mono)}
-.agree{margin-top:10px;font-size:.86rem;padding:8px 10px;border-radius:7px;background:var(--panel2)}
-.agree b.ok{color:var(--ok)}.agree b.no{color:var(--acc)}
-.fix{margin-top:10px;border-top:1px dashed var(--line);padding-top:10px}
-.fix-h{font-size:.84rem;font-weight:600;margin-bottom:6px}
-.fix-b{display:flex;flex-wrap:wrap;gap:6px}
-.btn.sm{font-size:.8rem;padding:6px 10px}
-.btn.hand{outline:2px solid var(--acc)}
-.fix-e{margin-top:8px;font-size:.84rem;font-family:var(--mono);background:var(--panel2);border-radius:6px;padding:7px 9px}
-.fix-e b{color:var(--acc)}
-.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.86rem;color:var(--muted)}
-.row input{width:84px;font:inherit;font-family:var(--mono);background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:5px;padding:5px 7px}
-canvas#trend{width:100%;height:140px;display:block}
-.how{border-top:1px solid var(--line)}
-.how .in{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;padding-block:22px}
-@media (max-width:760px){.how .in{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.how b{display:block;font-size:.92rem}.how span{color:var(--muted);font-size:.84rem}
-.how .n{font-family:var(--display);font-size:2rem;color:var(--acc);line-height:1}
-footer{border-top:1px solid var(--line)}
-footer .in{padding-block:16px 30px;font-size:.76rem;color:var(--muted)}
-[hidden]{display:none!important}
-</style>
-<style id="jnbar-css">
-.jnb{position:relative;z-index:50;display:flex;align-items:center;gap:10px;padding:6px max(14px,env(safe-area-inset-left,0px));background:#0b0f13;border-bottom:1px solid #26313b;font:500 13px/1.2 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#cfd8df}
-.jnb a{color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:6px;border-radius:999px;white-space:nowrap}
-.jnb .jnb-back{background:#e9eef2;color:#0b0f13;font-weight:700;padding:6px 13px 6px 10px;box-shadow:0 0 0 3px rgba(233,238,242,.12)}
-.jnb .jnb-back:hover{background:#fff}
-.jnb .jnb-who{color:#8a98a5;overflow:hidden;text-overflow:ellipsis}
-.jnb .jnb-who b{color:#cfd8df;font-weight:600}
-.jnb .jnb-sp{flex:1}
-.jnb .jnb-gh,.jnb .jnb-in{border:1px solid #34414d;padding:5px 11px;background:#121920}
-.jnb .jnb-gh:hover,.jnb .jnb-in:hover{border-color:#8a98a5;color:#fff}
-@media (max-width:640px){.jnb .jnb-who{display:none}.jnb .jnb-gh span,.jnb .jnb-in span{display:none}.jnb .jnb-gh,.jnb .jnb-in{padding:6px 8px}}
-@media print{.jnb{display:none}}
-</style>
-</head>
-<body>
-<!--jnbar--><div class="jnb" role="navigation" aria-label="Portafolio y código"><a class="jnb-back" href="https://jsnn15.github.io/">← Portafolio</a><span class="jnb-who"><b>Lector de instrumentos</b> · DelaCruz · Julián Neira Nova</span><span class="jnb-sp"></span><a class="jnb-gh" href="https://github.com/JSNN15/lector" target="_blank" rel="noopener" title="Ver el código de esta máquina en GitHub"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg><span>Código en GitHub</span></a><a class="jnb-in" href="https://www.linkedin.com/in/julian-neira-nova/" target="_blank" rel="noopener" title="Julián Neira Nova en LinkedIn"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><rect width="16" height="16" rx="3" fill="currentColor"/><path fill="#0b0f13" d="M3.6 6.2h2v6.2h-2zM4.6 3.2a1.15 1.15 0 110 2.3 1.15 1.15 0 010-2.3zM7 6.2h1.9v.85c.27-.5.93-1 1.9-1 2 0 2.4 1.3 2.4 3v3.35h-2V9.4c0-.73-.01-1.67-1.02-1.67-1.02 0-1.18.8-1.18 1.62v3.05H7z"/></svg><span>LinkedIn</span></a></div><!--/jnbar-->
-<nav><div class="in">
-  <a class="brand" href="./"><svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="17" r="12" fill="none" stroke="#ffb020" stroke-width="2.4"/><path d="M16 17l6-7" stroke="#ff4d3d" stroke-width="2.6" stroke-linecap="round"/><circle cx="16" cy="17" r="2.2" fill="#ffb020"/></svg>Lector de instrumentos</a>
-  <a class="s" href="../"><span class="lg">Julián Neira Nova · </span>Portafolio →</a>
-</div></nav>
-
-<header><div class="in">
-  <div>
-    <h1>Del dial <em>al dato</em></h1>
-    <p class="sub">Foto de un manómetro o termómetro de aguja. La IA lee la escala, la geometría arma el dial y la visión clásica encuentra la aguja.</p>
-  </div>
-  <span class="nvb">escala leída por <b>NVIDIA Nemotron VL</b></span>
-</div></header>
-
-<main class="in">
-  <div class="steps" id="steps">
-    <span class="st" data-s="1"><i></i>1 · IA lee los números</span>
-    <span class="st" data-s="2"><i></i>2 · Geometría del dial</span>
-    <span class="st" data-s="3"><i></i>3 · Barrido de la aguja</span>
-    <span class="st" data-s="4"><i></i>4 · Lectura</span>
-  </div>
-  <div class="tool">
-    <div>
-      <div class="stage" id="stage"><canvas id="cv" width="900" height="700"></canvas><video id="vid" playsinline muted></video><span class="hint" id="hint">Elige un ejemplo o sube una foto</span></div>
-      <div class="bar">
-        <label class="btn p">Tomar o subir foto<input type="file" id="file" accept="image/*" hidden></label>
-        <button class="btn" id="b-live">Cámara fija</button>
-        <button class="btn" id="b-cal" hidden>Calibrar con este cuadro</button>
-        <span class="sp"></span>
-        <span class="row" style="font-size:.78rem" id="cal-help" hidden>Calibrar: la IA lee la escala de este cuadro una sola vez; después la aguja se sigue en tu equipo</span>
-      </div>
-      <div class="thumbs" id="thumbs"></div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lector de instrumentos</title>
+    <meta
+      name="description"
+      content="Foto de un manómetro o termómetro de aguja y la lectura sale en número. La IA de NVIDIA lee la escala una vez; después la visión clásica sigue la aguja sola."
+    />
+    <meta property="og:title" content="Lector de instrumentos · IA de NVIDIA + visión clásica" />
+    <meta
+      property="og:description"
+      content="La IA lee la escala una vez, la geometría arma el dial y la visión clásica sigue la aguja. Instrumentos analógicos convertidos en datos."
+    />
+    <meta property="og:image" content="https://jsnn15.github.io/img/lector.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Work+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0a0b0d;
+        --panel: #121418;
+        --panel2: #181b21;
+        --line: #252a33;
+        --fg: #ebeef2;
+        --muted: #959cab;
+        --acc: #ffb020;
+        --nv: #76b900;
+        --red: #ff4d3d;
+        --cy: #3fd5f0;
+        --yel: #ffe066;
+        --ok: #3ccf7a;
+        --display: 'Big Shoulders Display', 'Arial Narrow', Impact, sans-serif;
+        --sans: 'Work Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+        --mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: var(--sans);
+        font-size: 16px;
+        line-height: 1.5;
+      }
+      a {
+        color: inherit;
+      }
+      .in {
+        max-width: 80rem;
+        margin-inline: auto;
+        padding-left: max(16px, env(safe-area-inset-left, 0px));
+        padding-right: max(16px, env(safe-area-inset-right, 0px));
+      }
+      nav {
+        border-bottom: 1px solid var(--line);
+      }
+      nav .in {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-block: 10px;
+        gap: 12px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-weight: 600;
+        text-decoration: none;
+      }
+      nav a.s {
+        font-family: var(--mono);
+        font-size: 0.76rem;
+        color: var(--muted);
+        text-decoration: none;
+      }
+      @media (max-width: 600px) {
+        nav .lg {
+          display: none;
+        }
+      }
+      header .in {
+        padding-block: 22px 14px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: end;
+        justify-content: space-between;
+        gap: 14px;
+      }
+      h1 {
+        font-family: var(--display);
+        font-weight: 800;
+        text-transform: uppercase;
+        font-size: clamp(2.2rem, 5vw, 3.6rem);
+        line-height: 0.9;
+        margin: 0;
+      }
+      h1 em {
+        font-style: normal;
+        color: var(--acc);
+      }
+      .sub {
+        color: var(--muted);
+        margin: 6px 0 0;
+        max-width: 56ch;
+      }
+      .nvb {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        color: var(--muted);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 4px 8px;
+      }
+      .nvb b {
+        color: var(--nv);
+      }
+      .steps {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+      }
+      .st {
+        font-family: var(--mono);
+        font-size: 0.74rem;
+        padding: 5px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.3s;
+      }
+      .st i {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--line);
+        display: inline-block;
+      }
+      .st.on {
+        color: var(--fg);
+        border-color: #4a4f5a;
+      }
+      .st.on i {
+        background: var(--acc);
+        box-shadow: 0 0 8px var(--acc);
+      }
+      .st.done i {
+        background: var(--ok);
+      }
+      .tool {
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+        gap: 14px;
+        padding-bottom: 20px;
+      }
+      @media (max-width: 900px) {
+        .tool {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+      .stage {
+        position: relative;
+        background: #000;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+        display: grid;
+        place-items: center;
+        min-height: 320px;
+        touch-action: none;
+      }
+      .stage canvas {
+        display: block;
+        max-width: 100%;
+        max-height: 72vh;
+        width: auto;
+        height: auto;
+      }
+      .stage video {
+        display: none;
+      }
+      .hint {
+        position: absolute;
+        left: 10px;
+        bottom: 10px;
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        background: rgba(0, 0, 0, 0.72);
+        border: 1px solid var(--line);
+        padding: 4px 8px;
+        border-radius: 4px;
+        color: var(--muted);
+      }
+      .bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        margin-top: 10px;
+      }
+      .btn {
+        font: inherit;
+        font-size: 0.9rem;
+        font-weight: 600;
+        padding: 9px 14px;
+        border-radius: 7px;
+        border: 1px solid var(--line);
+        background: var(--panel2);
+        color: var(--fg);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .btn.p {
+        background: var(--acc);
+        border-color: var(--acc);
+        color: #1b1200;
+      }
+      .btn.on {
+        border-color: var(--red);
+        color: #ffb1a8;
+      }
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      .sp {
+        flex: 1;
+      }
+      .thumbs {
+        display: flex;
+        gap: 8px;
+        padding-top: 10px;
+        overflow-x: auto;
+      }
+      .thumbs button {
+        flex: 0 0 auto;
+        width: 96px;
+        aspect-ratio: 1;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 2px solid var(--line);
+        padding: 0;
+        cursor: pointer;
+        background: #000;
+      }
+      .thumbs button.on {
+        border-color: var(--acc);
+      }
+      .thumbs img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .side {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px;
+      }
+      .read {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .val {
+        font-family: var(--display);
+        font-size: clamp(3.6rem, 8vw, 5.4rem);
+        line-height: 0.9;
+        font-weight: 800;
+        color: var(--fg);
+        font-variant-numeric: tabular-nums;
+      }
+      .unit {
+        font-family: var(--mono);
+        color: var(--muted);
+        font-size: 1rem;
+      }
+      .lim {
+        font-family: var(--mono);
+        font-size: 0.74rem;
+        font-weight: 600;
+        padding: 4px 9px;
+        border-radius: 4px;
+        margin-left: auto;
+      }
+      .lim.ok {
+        background: #103020;
+        color: #9ff0c0;
+      }
+      .lim.hi,
+      .lim.lo {
+        background: #3d0f0b;
+        color: #ffb1a8;
+      }
+      .kv {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 4px 12px;
+        font-size: 0.88rem;
+        margin-top: 10px;
+      }
+      .kv dt {
+        color: var(--muted);
+      }
+      .kv dd {
+        margin: 0;
+        font-family: var(--mono);
+      }
+      .agree {
+        margin-top: 10px;
+        font-size: 0.86rem;
+        padding: 8px 10px;
+        border-radius: 7px;
+        background: var(--panel2);
+      }
+      .agree b.ok {
+        color: var(--ok);
+      }
+      .agree b.no {
+        color: var(--acc);
+      }
+      .fix {
+        margin-top: 10px;
+        border-top: 1px dashed var(--line);
+        padding-top: 10px;
+      }
+      .fix-h {
+        font-size: 0.84rem;
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+      .fix-b {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .btn.sm {
+        font-size: 0.8rem;
+        padding: 6px 10px;
+      }
+      .btn.hand {
+        outline: 2px solid var(--acc);
+      }
+      .fix-e {
+        margin-top: 8px;
+        font-size: 0.84rem;
+        font-family: var(--mono);
+        background: var(--panel2);
+        border-radius: 6px;
+        padding: 7px 9px;
+      }
+      .fix-e b {
+        color: var(--acc);
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        font-size: 0.86rem;
+        color: var(--muted);
+      }
+      .row input {
+        width: 84px;
+        font: inherit;
+        font-family: var(--mono);
+        background: var(--panel2);
+        color: var(--fg);
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        padding: 5px 7px;
+      }
+      canvas#trend {
+        width: 100%;
+        height: 140px;
+        display: block;
+      }
+      .how {
+        border-top: 1px solid var(--line);
+      }
+      .how .in {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        padding-block: 22px;
+      }
+      @media (max-width: 760px) {
+        .how .in {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      .how b {
+        display: block;
+        font-size: 0.92rem;
+      }
+      .how span {
+        color: var(--muted);
+        font-size: 0.84rem;
+      }
+      .how .n {
+        font-family: var(--display);
+        font-size: 2rem;
+        color: var(--acc);
+        line-height: 1;
+      }
+      footer {
+        border-top: 1px solid var(--line);
+      }
+      footer .in {
+        padding-block: 16px 30px;
+        font-size: 0.76rem;
+        color: var(--muted);
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+    <style id="jnbar-css">
+      .jnb {
+        position: relative;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px max(14px, env(safe-area-inset-left, 0px));
+        background: #0b0f13;
+        border-bottom: 1px solid #26313b;
+        font:
+          500 13px/1.2 system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+        color: #cfd8df;
+      }
+      .jnb a {
+        color: inherit;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        white-space: nowrap;
+      }
+      .jnb .jnb-back {
+        background: #e9eef2;
+        color: #0b0f13;
+        font-weight: 700;
+        padding: 6px 13px 6px 10px;
+        box-shadow: 0 0 0 3px rgba(233, 238, 242, 0.12);
+      }
+      .jnb .jnb-back:hover {
+        background: #fff;
+      }
+      .jnb .jnb-who {
+        color: #8a98a5;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .jnb .jnb-who b {
+        color: #cfd8df;
+        font-weight: 600;
+      }
+      .jnb .jnb-sp {
+        flex: 1;
+      }
+      .jnb .jnb-gh,
+      .jnb .jnb-in {
+        border: 1px solid #34414d;
+        padding: 5px 11px;
+        background: #121920;
+      }
+      .jnb .jnb-gh:hover,
+      .jnb .jnb-in:hover {
+        border-color: #8a98a5;
+        color: #fff;
+      }
+      @media (max-width: 640px) {
+        .jnb .jnb-who {
+          display: none;
+        }
+        .jnb .jnb-gh span,
+        .jnb .jnb-in span {
+          display: none;
+        }
+        .jnb .jnb-gh,
+        .jnb .jnb-in {
+          padding: 6px 8px;
+        }
+      }
+      @media print {
+        .jnb {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!--jnbar-->
+    <div class="jnb" role="navigation" aria-label="Portafolio y código">
+      <a class="jnb-back" href="https://jsnn15.github.io/">← Portafolio</a
+      ><span class="jnb-who"><b>Lector de instrumentos</b> · DelaCruz · Julián Neira Nova</span
+      ><span class="jnb-sp"></span
+      ><a
+        class="jnb-gh"
+        href="https://github.com/JSNN15/lector"
+        target="_blank"
+        rel="noopener"
+        title="Ver el código de esta máquina en GitHub"
+        ><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+          /></svg
+        ><span>Código en GitHub</span></a
+      ><a
+        class="jnb-in"
+        href="https://www.linkedin.com/in/julian-neira-nova/"
+        target="_blank"
+        rel="noopener"
+        title="Julián Neira Nova en LinkedIn"
+        ><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+          <rect width="16" height="16" rx="3" fill="currentColor" />
+          <path
+            fill="#0b0f13"
+            d="M3.6 6.2h2v6.2h-2zM4.6 3.2a1.15 1.15 0 110 2.3 1.15 1.15 0 010-2.3zM7 6.2h1.9v.85c.27-.5.93-1 1.9-1 2 0 2.4 1.3 2.4 3v3.35h-2V9.4c0-.73-.01-1.67-1.02-1.67-1.02 0-1.18.8-1.18 1.62v3.05H7z"
+          /></svg
+        ><span>LinkedIn</span></a
+      >
     </div>
-    <div class="side">
-      <div class="card">
-        <div class="read"><span class="val" id="val">—</span><span class="unit" id="unit"></span><span class="lim" id="lim" hidden></span></div>
-        <dl class="kv">
-          <dt>Instrumento</dt><dd id="k-ins">—</dd>
-          <dt>Escala</dt><dd id="k-rng">—</dd>
-          <dt>Números leídos</dt><dd id="k-num">—</dd>
-          <dt>Ajuste del dial</dt><dd id="k-fit">—</dd>
-        </dl>
-        <div class="agree" id="agree">La IA estima un valor por su cuenta y lo comparo con la lectura geométrica.</div>
-        <div class="fix" id="fix" hidden>
-          <div class="fix-h">¿La lectura está mal?</div>
-          <div class="fix-b">
-            <button class="btn sm" id="f-flip" title="Toma el extremo opuesto: corrige cuando se leyó la cola o el contrapeso">Usar la punta opuesta</button>
-            <button class="btn sm" id="f-next" title="Prueba la siguiente línea candidata encontrada por el barrido">Otra candidata</button>
-            <button class="btn sm" id="f-hand" title="Arrastra la punta roja sobre la foto hasta la aguja">Ajustar a mano</button>
-            <button class="btn sm" id="f-reset" hidden>Volver a la automática</button>
+    <!--/jnbar-->
+    <nav>
+      <div class="in">
+        <a class="brand" href="./"
+          ><svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
+            <circle cx="16" cy="17" r="12" fill="none" stroke="#ffb020" stroke-width="2.4" />
+            <path d="M16 17l6-7" stroke="#ff4d3d" stroke-width="2.6" stroke-linecap="round" />
+            <circle cx="16" cy="17" r="2.2" fill="#ffb020" /></svg
+          >Lector de instrumentos</a
+        >
+        <a class="s" href="../"><span class="lg">Julián Neira Nova · </span>Portafolio →</a>
+      </div>
+    </nav>
+
+    <header>
+      <div class="in">
+        <div>
+          <h1>Del dial <em>al dato</em></h1>
+          <p class="sub">
+            Foto de un manómetro o termómetro de aguja. La IA lee la escala, la geometría arma el dial y la
+            visión clásica encuentra la aguja.
+          </p>
+        </div>
+        <span class="nvb">escala leída por <b>NVIDIA Nemotron VL</b></span>
+      </div>
+    </header>
+
+    <main class="in">
+      <div class="steps" id="steps">
+        <span class="st" data-s="1"><i></i>1 · IA lee los números</span>
+        <span class="st" data-s="2"><i></i>2 · Geometría del dial</span>
+        <span class="st" data-s="3"><i></i>3 · Barrido de la aguja</span>
+        <span class="st" data-s="4"><i></i>4 · Lectura</span>
+      </div>
+      <div class="tool">
+        <div>
+          <div class="stage" id="stage">
+            <canvas id="cv" width="900" height="700"></canvas><video id="vid" playsinline muted></video
+            ><span class="hint" id="hint">Elige un ejemplo o sube una foto</span>
           </div>
-          <div class="fix-e" id="fix-e" hidden></div>
+          <div class="bar">
+            <label class="btn p"
+              >Tomar o subir foto<input type="file" id="file" accept="image/*" hidden
+            /></label>
+            <button class="btn" id="b-live">Cámara fija</button>
+            <button class="btn" id="b-cal" hidden>Calibrar con este cuadro</button>
+            <span class="sp"></span>
+            <span class="row" style="font-size: 0.78rem" id="cal-help" hidden
+              >Calibrar: la IA lee la escala de este cuadro una sola vez; después la aguja se sigue en tu
+              equipo</span
+            >
+          </div>
+          <div class="thumbs" id="thumbs"></div>
+        </div>
+        <div class="side">
+          <div class="card">
+            <div class="read">
+              <span class="val" id="val">—</span><span class="unit" id="unit"></span
+              ><span class="lim" id="lim" hidden></span>
+            </div>
+            <dl class="kv">
+              <dt>Instrumento</dt>
+              <dd id="k-ins">—</dd>
+              <dt>Escala</dt>
+              <dd id="k-rng">—</dd>
+              <dt>Números leídos</dt>
+              <dd id="k-num">—</dd>
+              <dt>Ajuste del dial</dt>
+              <dd id="k-fit">—</dd>
+            </dl>
+            <div class="agree" id="agree">
+              La IA estima un valor por su cuenta y lo comparo con la lectura geométrica.
+            </div>
+            <div class="fix" id="fix" hidden>
+              <div class="fix-h">¿La lectura está mal?</div>
+              <div class="fix-b">
+                <button
+                  class="btn sm"
+                  id="f-flip"
+                  title="Toma el extremo opuesto: corrige cuando se leyó la cola o el contrapeso"
+                >
+                  Usar la punta opuesta
+                </button>
+                <button
+                  class="btn sm"
+                  id="f-next"
+                  title="Prueba la siguiente línea candidata encontrada por el barrido"
+                >
+                  Otra candidata
+                </button>
+                <button
+                  class="btn sm"
+                  id="f-hand"
+                  title="Arrastra la punta roja sobre la foto hasta la aguja"
+                >
+                  Ajustar a mano
+                </button>
+                <button class="btn sm" id="f-reset" hidden>Volver a la automática</button>
+              </div>
+              <div class="fix-e" id="fix-e" hidden></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="row" style="justify-content: space-between">
+              <b style="color: var(--fg)">Registro</b
+              ><span
+                >Alarma baja <input id="lo" type="number" step="any" /> alta
+                <input id="hi" type="number" step="any"
+              /></span>
+            </div>
+            <canvas id="trend" width="600" height="140"></canvas>
+            <div class="bar" style="margin-top: 6px">
+              <button class="btn" id="b-log">Registrar lectura</button
+              ><span class="row" id="n-log">0 lecturas</span>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="card">
-        <div class="row" style="justify-content:space-between"><b style="color:var(--fg)">Registro</b><span>Alarma baja <input id="lo" type="number" step="any"> alta <input id="hi" type="number" step="any"></span></div>
-        <canvas id="trend" width="600" height="140"></canvas>
-        <div class="bar" style="margin-top:6px"><button class="btn" id="b-log">Registrar lectura</button><span class="row" id="n-log">0 lecturas</span></div>
+    </main>
+
+    <section class="how">
+      <div class="in">
+        <div>
+          <div class="n">1</div>
+          <b>La IA lee la escala</b
+          ><span
+            >Nemotron VL ubica cada número impreso y su posición. Se hace una sola vez por instrumento.</span
+          >
+        </div>
+        <div>
+          <div class="n">2</div>
+          <b>Geometría</b
+          ><span
+            >Con los números se ajusta la circunferencia del dial y la relación ángulo-valor. Un ajuste
+            robusto descarta la segunda escala.</span
+          >
+        </div>
+        <div>
+          <div class="n">3</div>
+          <b>Visión clásica</b
+          ><span
+            >Un barrido radial busca la línea que sale del eje y llega más lejos: la punta, no el contrapeso.
+            Corre en tu navegador, muchas veces por segundo.</span
+          >
+        </div>
+        <div>
+          <div class="n">4</div>
+          <b>Dato con alarma</b
+          ><span
+            >La lectura se compara con la estimación de la IA y con los límites. Si algo no calza, se corrige
+            y se ve el error de la lectura automática.</span
+          >
+        </div>
       </div>
-    </div>
-  </div>
-</main>
+    </section>
 
-<section class="how"><div class="in">
-  <div><div class="n">1</div><b>La IA lee la escala</b><span>Nemotron VL ubica cada número impreso y su posición. Se hace una sola vez por instrumento.</span></div>
-  <div><div class="n">2</div><b>Geometría</b><span>Con los números se ajusta la circunferencia del dial y la relación ángulo-valor. Un ajuste robusto descarta la segunda escala.</span></div>
-  <div><div class="n">3</div><b>Visión clásica</b><span>Un barrido radial busca la línea que sale del eje y llega más lejos: la punta, no el contrapeso. Corre en tu navegador, muchas veces por segundo.</span></div>
-  <div><div class="n">4</div><b>Dato con alarma</b><span>La lectura se compara con la estimación de la IA y con los límites. Si algo no calza, se corrige y se ve el error de la lectura automática.</span></div>
-</div></section>
+    <footer>
+      <div class="in">
+        Lector de instrumentos · Servicio y Soluciones Tecnológicas DelaCruz SpA · Julián Neira Nova. La foto
+        se envía a la API de NVIDIA a través de un servidor intermedio solo para leer la escala; en modo
+        cámara fija, el seguimiento de la aguja corre en tu equipo. Fotos de ejemplo:
+        <span id="credits"></span>
+      </div>
+    </footer>
 
-<footer><div class="in">Lector de instrumentos · Servicio y Soluciones Tecnológicas DelaCruz SpA · Julián Neira Nova. La foto se envía a la API de NVIDIA a través de un servidor intermedio solo para leer la escala; en modo cámara fija, el seguimiento de la aguja corre en tu equipo. Fotos de ejemplo: <span id="credits"></span></div></footer>
+    <script src="samples.js"></script>
+    <script>
+      (() => {
+        const NV = ((location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'http://localhost:8787' : 'https://nv-portafolio.jneiranova.workers.dev');
+        const $ = (id) => document.getElementById(id);
+        const cv = $('cv'),
+          cx = cv.getContext('2d', {willReadFrequently: true}),
+          vid = $('vid');
+        const nf = (v, d) => {
+          const r = new Intl.NumberFormat('es-CL', {
+            minimumFractionDigits: d,
+            maximumFractionDigits: d,
+          }).format(v);
+          return /^-0([,.]0+)?$/.test(r) ? r.slice(1) : r;
+        };
+        const esc = (s) =>
+          String(s ?? '').replace(
+            /[&<>"]/g,
+            (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[c]
+          );
+        let src = null,
+          R = null,
+          C = null,
+          needle = null,
+          gray = null,
+          live = false,
+          stream = null,
+          profile = null,
+          log = [],
+          dragging = false,
+          sweepAng = null;
+        $('credits').innerHTML = SAMPLES.map((s) => `<a href="${s.link}">${s.credit}</a>`).join(' · ');
+        $('thumbs').innerHTML = SAMPLES.map(
+          (s, i) => `<button data-i="${i}" aria-label="Ejemplo ${i + 1}"><img src="${s.img}" alt=""></button>`
+        ).join('');
+        const step = (n) =>
+          document.querySelectorAll('.st').forEach((e) => {
+            const k = +e.dataset.s;
+            e.classList.toggle('on', k === n);
+            e.classList.toggle('done', k < n);
+          });
+        const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-<script>
-(() => {
-  const NV = ((location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'http://localhost:8787' : 'https://nv-portafolio.jneiranova.workers.dev'), SAMPLES = [{"img": "s/g0.jpg", "credit": "Pressure gauge · zimpenfish · CC BY 2.0", "link": "https://www.flickr.com/photos/12708857@N00/490405017", "result": {"instrumento": "manómetro", "unidad": "libras por pulgada cuadrada (PSI)", "escala_min": 0, "escala_max": 300, "numeros": [{"v": 0, "x": 375, "y": 320}, {"v": 50, "x": 375, "y": 255}, {"v": 100, "x": 450, "y": 290}, {"v": 150, "x": 500, "y": 235}, {"v": 200, "x": 550, "y": 290}, {"v": 250, "x": 625, "y": 255}, {"v": 300, "x": 650, "y": 320}], "valor_estimado": 150, "confianza": "alta", "problemas": ""}}, {"img": "s/g1.jpg", "credit": "Back-Entry-Dial-Thermometer__11461 · Public Domain Photos · CC BY 2.0", "link": "https://www.flickr.com/photos/28958738@N06/6962971591", "result": {"instrumento": "termómetro", "unidad": "°C", "escala_min": 0, "escala_max": 120, "numeros": [{"v": 0, "x": 185, "y": 605}, {"v": 20, "x": 165, "y": 500}, {"v": 40, "x": 220, "y": 395}, {"v": 60, "x": 320, "y": 355}, {"v": 80, "x": 415, "y": 415}, {"v": 100, "x": 435, "y": 530}, {"v": 120, "x": 385, "y": 630}], "valor_estimado": 20, "confianza": "alta", "problemas": ""}}, {"img": "s/g2.jpg", "credit": "residual pressure gauge · yawning hunter · CC BY 2.0", "link": "https://www.flickr.com/photos/192679240@N05/52441447645", "result": {"instrumento": "manómetro", "unidad": "bar", "escala_min": 0, "escala_max": 300, "numeros": [{"v": 0, "x": 270, "y": 475}, {"v": 50, "x": 330, "y": 430}, {"v": 100, "x": 390, "y": 455}, {"v": 150, "x": 435, "y": 515}, {"v": 200, "x": 430, "y": 595}, {"v": 250, "x": 395, "y": 670}, {"v": 300, "x": 330, "y": 705}], "valor_estimado": 0, "confianza": "alta", "problemas": "reflejos, ángulo"}}, {"img": "s/g3.jpg", "credit": "Under Pressure · ThenAndAgain · CC BY 2.0", "link": "https://www.flickr.com/photos/22606501@N00/60636479", "result": {"instrumento": "manómetro", "unidad": "psi", "escala_min": 0, "escala_max": 100, "numeros": [{"v": 10, "x": 285, "y": 675}, {"v": 20, "x": 235, "y": 550}, {"v": 30, "x": 240, "y": 410}, {"v": 40, "x": 310, "y": 290}, {"v": 50, "x": 430, "y": 210}, {"v": 60, "x": 590, "y": 205}, {"v": 70, "x": 685, "y": 285}, {"v": 80, "x": 765, "y": 395}, {"v": 90, "x": 785, "y": 535}, {"v": 100, "x": 740, "y": 660}], "valor_estimado": 65, "confianza": "alta", "problemas": ""}}, {"img": "s/g4.jpg", "credit": "Pressure · BinaryApe · CC BY 2.0", "link": "https://www.flickr.com/photos/93001633@N00/2915056465", "result": {"instrumento": "manómetro", "unidad": "lb/in²", "escala_min": 0, "escala_max": 160, "numeros": [{"v": 0, "x": 300, "y": 575}, {"v": 20, "x": 285, "y": 490}, {"v": 40, "x": 295, "y": 400}, {"v": 60, "x": 325, "y": 325}, {"v": 80, "x": 385, "y": 300}, {"v": 100, "x": 440, "y": 340}, {"v": 120, "x": 470, "y": 425}, {"v": 140, "x": 465, "y": 505}, {"v": 160, "x": 440, "y": 585}], "valor_estimado": 115, "confianza": "media", "problemas": "reflejos, suciedad en el vidrio, ángulo de visión"}}, {"img": "s/g5.jpg", "credit": "Increasing Pressure · flattop341 · CC BY 2.0", "link": "https://www.flickr.com/photos/46861107@N00/236611537", "result": {"instrumento": "manómetro", "unidad": "psi", "escala_min": 0, "escala_max": 100, "numeros": [{"v": 0, "x": 532, "y": 690}, {"v": 10, "x": 458, "y": 650}, {"v": 20, "x": 398, "y": 600}, {"v": 30, "x": 360, "y": 510}, {"v": 40, "x": 360, "y": 390}, {"v": 50, "x": 390, "y": 310}, {"v": 60, "x": 450, "y": 250}, {"v": 70, "x": 530, "y": 220}, {"v": 80, "x": 620, "y": 260}, {"v": 90, "x": 670, "y": 350}, {"v": 100, "x": 690, "y": 470}], "valor_estimado": 68, "confianza": "media", "problemas": "reflejos en el vidrio, ángulo de visión oblicuo"}}, {"img": "s/g6.jpg", "credit": "Gauge on a U-Boat · quinet · CC BY 2.0", "link": "https://www.flickr.com/photos/91994044@N00/15633105576", "result": {"instrumento": "manómetro", "unidad": "kg/cm²", "escala_min": 0, "escala_max": 1, "numeros": [{"v": 0, "x": 420, "y": 595}, {"v": 0.2, "x": 410, "y": 440}, {"v": 0.4, "x": 470, "y": 320}, {"v": 0.6, "x": 580, "y": 320}, {"v": 0.8, "x": 640, "y": 440}, {"v": 1, "x": 630, "y": 575}], "valor_estimado": 0.55, "confianza": "alta", "problemas": ""}}, {"img": "s/g7.jpg", "credit": "That's all she's got captain! · flattop341 · CC BY 2.0", "link": "https://www.flickr.com/photos/46861107@N00/352434816", "result": {"instrumento": "manómetro", "unidad": "psi", "escala_min": 0, "escala_max": 200, "numeros": [{"v": 20, "x": 360, "y": 620}, {"v": 40, "x": 290, "y": 550}, {"v": 60, "x": 260, "y": 450}, {"v": 80, "x": 270, "y": 350}, {"v": 100, "x": 310, "y": 260}, {"v": 120, "x": 380, "y": 200}, {"v": 140, "x": 450, "y": 190}, {"v": 160, "x": 530, "y": 230}, {"v": 180, "x": 590, "y": 310}, {"v": 200, "x": 610, "y": 420}], "valor_estimado": 95, "confianza": "media", "problemas": "reflejos, suciedad, ángulo oblicuo"}}];
-  const $ = (id) => document.getElementById(id);
-  const cv = $('cv'), cx = cv.getContext('2d', {willReadFrequently: true}), vid = $('vid');
-  const nf = (v, d) => { const r = new Intl.NumberFormat('es-CL', {minimumFractionDigits: d, maximumFractionDigits: d}).format(v); return /^-0([,.]0+)?$/.test(r) ? r.slice(1) : r; };
-  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
-  let src = null, R = null, C = null, needle = null, gray = null, live = false, stream = null, profile = null, log = [], dragging = false, sweepAng = null;
-  $('credits').innerHTML = SAMPLES.map((s) => `<a href="${s.link}">${s.credit}</a>`).join(' · ');
-  $('thumbs').innerHTML = SAMPLES.map((s, i) => `<button data-i="${i}" aria-label="Ejemplo ${i + 1}"><img src="${s.img}" alt=""></button>`).join('');
-  const step = (n) => document.querySelectorAll('.st').forEach((e) => { const k = +e.dataset.s; e.classList.toggle('on', k === n); e.classList.toggle('done', k < n); });
-  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+        /* ---------- geometría ---------- */
+        const lstsq3 = (A, b) => {
+          // resuelve (AᵀA)x = Aᵀb para 3 incógnitas
+          const M = [
+              [0, 0, 0],
+              [0, 0, 0],
+              [0, 0, 0],
+            ],
+            v = [0, 0, 0];
+          A.forEach((r, i) => {
+            for (let p = 0; p < 3; p++) {
+              v[p] += r[p] * b[i];
+              for (let q = 0; q < 3; q++) M[p][q] += r[p] * r[q];
+            }
+          });
+          const det = (m) =>
+            m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
+            m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
+            m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+          const D = det(M);
+          if (Math.abs(D) < 1e-9) return null;
+          return [0, 1, 2].map((k) => det(M.map((row, i) => row.map((x, j) => (j === k ? v[i] : x)))) / D);
+        };
+        const circle = (P) => {
+          const s = lstsq3(
+            P.map(([x, y]) => [2 * x, 2 * y, 1]),
+            P.map(([x, y]) => x * x + y * y)
+          );
+          if (!s) return null;
+          return {cx: s[0], cy: s[1], r: Math.sqrt(Math.max(0, s[2] + s[0] * s[0] + s[1] * s[1]))};
+        };
+        const unwrap = (a) => {
+          const o = [a[0]];
+          for (let i = 1; i < a.length; i++) {
+            let d = a[i] - a[i - 1];
+            while (d > Math.PI) d -= 2 * Math.PI;
+            while (d < -Math.PI) d += 2 * Math.PI;
+            o.push(o[i - 1] + d);
+          }
+          return o;
+        };
+        const linfit = (x, y) => {
+          const n = x.length,
+            mx = x.reduce((s, v) => s + v, 0) / n,
+            my = y.reduce((s, v) => s + v, 0) / n;
+          let sxy = 0,
+            sxx = 0;
+          x.forEach((v, i) => {
+            sxy += (v - mx) * (y[i] - my);
+            sxx += (v - mx) ** 2;
+          });
+          const k = sxy / (sxx || 1e-9);
+          return {k, b: my - k * mx};
+        };
+        const fit = (P, V) => {
+          const c = circle(P);
+          if (!c || !isFinite(c.r)) return null;
+          const ang = unwrap(P.map(([x, y]) => Math.atan2(y - c.cy, x - c.cx)));
+          const l = linfit(V, ang);
+          const e = ang.map((a, i) => Math.abs(a - (l.k * V[i] + l.b))).sort((a, b) => a - b);
+          return {...c, ...l, res: e[e.length - 1], med: e[Math.floor(e.length / 2)]};
+        };
+        // RANSAC sobre tríos de números: se queda con el dial que explica más números (descarta la segunda escala)
+        const calibrate = (nums, W, H) => {
+          const pts = nums
+            .filter((n) => isFinite(n.v) && isFinite(n.x) && isFinite(n.y))
+            .map((n) => ({p: [(n.x * W) / 1000, (n.y * H) / 1000], v: +n.v}))
+            .sort((a, b) => a.v - b.v);
+          const n = pts.length;
+          if (n < 3) return null;
+          let best = null,
+            bestIn = null,
+            tol = (7 * Math.PI) / 180;
+          for (let i = 0; i < n; i++)
+            for (let j = i + 1; j < n; j++)
+              for (let k = j + 1; k < n; k++) {
+                const S = [pts[i], pts[j], pts[k]];
+                if (new Set(S.map((s) => s.v)).size < 3) continue;
+                const f = fit(
+                  S.map((s) => s.p),
+                  S.map((s) => s.v)
+                );
+                if (!f || f.r < 0.05 * Math.max(W, H) || f.r > 1.2 * Math.max(W, H)) continue;
+                const inl = pts.map((s) => {
+                  const a = Math.atan2(s.p[1] - f.cy, s.p[0] - f.cx),
+                    pr = f.k * s.v + f.b;
+                  const d = Math.abs(
+                    ((((a - pr + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) - Math.PI
+                  );
+                  return d < tol && Math.abs(Math.hypot(s.p[0] - f.cx, s.p[1] - f.cy) - f.r) / f.r < 0.15;
+                });
+                const c = inl.filter(Boolean).length;
+                if (!bestIn || c > bestIn.filter(Boolean).length) bestIn = inl;
+              }
+          const use = bestIn && bestIn.filter(Boolean).length >= 3 ? pts.filter((_, i) => bestIn[i]) : pts;
+          const f = fit(
+            use.map((s) => s.p),
+            use.map((s) => s.v)
+          );
+          if (!f) return null;
+          return {...f, vmin: use[0].v, vmax: use[use.length - 1].v, used: use, all: pts};
+        };
+        const ang2val = (c, t) => {
+          let best = null;
+          for (let j = -3; j <= 3; j++) {
+            const v = (t + 2 * Math.PI * j - c.b) / c.k,
+              d = v >= c.vmin && v <= c.vmax ? 0 : Math.min(Math.abs(v - c.vmin), Math.abs(v - c.vmax));
+            if (!best || d < best[0]) best = [d, v];
+          }
+          return best[1];
+        };
+        const val2ang = (c, v) => c.k * v + c.b;
+        const grabGray = () => {
+          const W = cv.width,
+            H = cv.height,
+            d = cx.getImageData(0, 0, W, H).data,
+            g = new Float32Array(W * H);
+          for (let i = 0; i < W * H; i++)
+            g[i] = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
+          return g;
+        };
+        // barrido radial: la punta de la aguja es la línea que sale continua del eje y llega hasta la escala.
+        // La cola o contrapeso también es oscura, pero se corta antes: por eso se mide el alcance y no solo el contraste.
+        // La tolerancia lateral va en píxeles (no en grados) para soportar un centro estimado con algo de error.
+        const findNeedle = (c, g, hint) => {
+          const W = cv.width,
+            H = cv.height,
+            N = 720,
+            K = 60,
+            r0 = 0.1,
+            r1 = 0.97;
+          const rf = Array.from({length: K}, (_, k) => r0 + ((r1 - r0) * k) / (K - 1)),
+            rad = rf.map((f) => f * c.r);
+          const S = new Float32Array(N * K).fill(NaN);
+          for (let i = 0; i < N; i++) {
+            const t = (2 * Math.PI * i) / N,
+              co = Math.cos(t),
+              si = Math.sin(t);
+            for (let k = 0; k < K; k++) {
+              const x = Math.round(c.cx + co * rad[k]),
+                y = Math.round(c.cy + si * rad[k]);
+              if (x >= 0 && y >= 0 && x < W && y < H) S[i * K + k] = g[y * W + x];
+            }
+          }
+          const med = (a) => {
+            a = a.filter((v) => !isNaN(v)).sort((p, q) => p - q);
+            return a.length ? a[a.length >> 1] : NaN;
+          };
+          const band = [];
+          for (let k = 0; k < K; k++)
+            if (rf[k] >= 0.4 && rf[k] <= 0.75) for (let i = 0; i < N; i++) band.push(S[i * K + k]);
+          const face = med(band.slice()),
+            mad = Math.max(6, med(band.map((v) => Math.abs(v - face))));
+          const base = new Float32Array(K);
+          for (let k = 0; k < K; k++) {
+            const col = [];
+            for (let i = 0; i < N; i++) col.push(S[i * K + k]);
+            const m = med(col);
+            base[k] = Math.abs(m - face) < 0.25 * Math.max(face, 40) ? m : face;
+          }
+          let dk = 0,
+            lt = 0;
+          for (let k = 0; k < K; k++)
+            for (let i = 0; i < N; i++) {
+              const d = S[i * K + k] - base[k];
+              if (d < -3 * mad) dk++;
+              else if (d > 3 * mad) lt++;
+            }
+          const pol = dk >= lt ? 1 : -1,
+            thr = Math.max(22, 2.5 * mad);
+          const isN = new Uint8Array(N * K);
+          for (let j = 0; j < N * K; j++) {
+            const k = j % K;
+            isN[j] = !isNaN(S[j]) && pol * (base[k] - S[j]) > thr ? 1 : 0;
+          }
+          const tol = Math.max(3, 0.05 * c.r),
+            isW = new Uint8Array(N * K);
+          for (let k = 0; k < K; k++) {
+            const w = Math.max(1, Math.min(40, Math.ceil(tol / Math.max(rad[k], 1) / ((2 * Math.PI) / N))));
+            for (let i = 0; i < N; i++) {
+              if (!isN[i * K + k]) continue;
+              for (let s = -w; s <= w; s++) isW[((i + s + N) % N) * K + k] = 1;
+            }
+          }
+          const reach = new Float32Array(N),
+            mass = new Float32Array(N);
+          for (let i = 0; i < N; i++) {
+            let miss = 0,
+              last = -1,
+              st = false;
+            for (let k = 0; k < K; k++) {
+              if (isW[i * K + k]) {
+                last = k;
+                st = true;
+                miss = 0;
+              } else if (rf[k] < 0.3 && !st) continue;
+              else if (++miss > 1) break;
+            }
+            reach[i] = last < 0 ? 0 : rf[last];
+            let m = 0;
+            for (let k = 0; k <= last; k++) m += isN[i * K + k];
+            mass[i] = m;
+          }
+          const score = (i) => reach[i] * 10 + mass[i] / K,
+            span = Math.abs(c.vmax - c.vmin),
+            inR = (v) => v >= c.vmin - 0.12 * span && v <= c.vmax + 0.12 * span;
+          const order = Array.from(reach.keys()).sort((a, b) => score(b) - score(a)),
+            cands = [];
+          for (const i of order) {
+            const t = (2 * Math.PI * i) / N,
+              v = ang2val(c, t);
+            if (!inR(v)) continue;
+            if (cands.some((q) => Math.abs(((q.i - i + N + N / 2) % N) - N / 2) < 8)) continue;
+            cands.push({i, t, v, reach: reach[i], s: score(i)});
+            if (cands.length >= 6) break;
+          }
+          if (!cands.length) {
+            const i = order[0],
+              t = (2 * Math.PI * i) / N;
+            cands.push({i, t, v: ang2val(c, t), reach: reach[i], s: score(i)});
+          }
+          let top = cands[0];
+          // la estimación de la IA no elige la aguja: se usa solo como control independiente
+          const m = new Float32Array(N);
+          for (let i = 0; i < N; i++) m[i] = reach[i] * mass[i];
+          profile = {m, pol};
+          return {t: top.t, v: top.v, cands, auto: true};
+        };
 
-  /* ---------- geometría ---------- */
-  const lstsq3 = (A, b) => { // resuelve (AᵀA)x = Aᵀb para 3 incógnitas
-    const M = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], v = [0, 0, 0];
-    A.forEach((r, i) => { for (let p = 0; p < 3; p++) { v[p] += r[p] * b[i]; for (let q = 0; q < 3; q++) M[p][q] += r[p] * r[q]; } });
-    const det = (m) => m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
-    const D = det(M); if (Math.abs(D) < 1e-9) return null;
-    return [0, 1, 2].map((k) => det(M.map((row, i) => row.map((x, j) => (j === k ? v[i] : x)))) / D);
-  };
-  const circle = (P) => { const s = lstsq3(P.map(([x, y]) => [2 * x, 2 * y, 1]), P.map(([x, y]) => x * x + y * y)); if (!s) return null; return {cx: s[0], cy: s[1], r: Math.sqrt(Math.max(0, s[2] + s[0] * s[0] + s[1] * s[1]))}; };
-  const unwrap = (a) => { const o = [a[0]]; for (let i = 1; i < a.length; i++) { let d = a[i] - a[i - 1]; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; o.push(o[i - 1] + d); } return o; };
-  const linfit = (x, y) => { const n = x.length, mx = x.reduce((s, v) => s + v, 0) / n, my = y.reduce((s, v) => s + v, 0) / n; let sxy = 0, sxx = 0; x.forEach((v, i) => { sxy += (v - mx) * (y[i] - my); sxx += (v - mx) ** 2; }); const k = sxy / (sxx || 1e-9); return {k, b: my - k * mx}; };
-  const fit = (P, V) => { const c = circle(P); if (!c || !isFinite(c.r)) return null; const ang = unwrap(P.map(([x, y]) => Math.atan2(y - c.cy, x - c.cx))); const l = linfit(V, ang); const e = ang.map((a, i) => Math.abs(a - (l.k * V[i] + l.b))).sort((a, b) => a - b); return {...c, ...l, res: e[e.length - 1], med: e[Math.floor(e.length / 2)]}; };
-  // RANSAC sobre tríos de números: se queda con el dial que explica más números (descarta la segunda escala)
-  const calibrate = (nums, W, H) => {
-    const pts = nums.filter((n) => isFinite(n.v) && isFinite(n.x) && isFinite(n.y)).map((n) => ({p: [n.x * W / 1000, n.y * H / 1000], v: +n.v})).sort((a, b) => a.v - b.v);
-    const n = pts.length; if (n < 3) return null;
-    let best = null, bestIn = null, tol = 7 * Math.PI / 180;
-    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) for (let k = j + 1; k < n; k++) {
-      const S = [pts[i], pts[j], pts[k]]; if (new Set(S.map((s) => s.v)).size < 3) continue;
-      const f = fit(S.map((s) => s.p), S.map((s) => s.v)); if (!f || f.r < 0.05 * Math.max(W, H) || f.r > 1.2 * Math.max(W, H)) continue;
-      const inl = pts.map((s) => { const a = Math.atan2(s.p[1] - f.cy, s.p[0] - f.cx), pr = f.k * s.v + f.b; const d = Math.abs(((a - pr + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI); return d < tol && Math.abs(Math.hypot(s.p[0] - f.cx, s.p[1] - f.cy) - f.r) / f.r < 0.15; });
-      const c = inl.filter(Boolean).length; if (!bestIn || c > bestIn.filter(Boolean).length) bestIn = inl;
-    }
-    const use = bestIn && bestIn.filter(Boolean).length >= 3 ? pts.filter((_, i) => bestIn[i]) : pts;
-    const f = fit(use.map((s) => s.p), use.map((s) => s.v)); if (!f) return null;
-    return {...f, vmin: use[0].v, vmax: use[use.length - 1].v, used: use, all: pts};
-  };
-  const ang2val = (c, t) => { let best = null; for (let j = -3; j <= 3; j++) { const v = (t + 2 * Math.PI * j - c.b) / c.k, d = v >= c.vmin && v <= c.vmax ? 0 : Math.min(Math.abs(v - c.vmin), Math.abs(v - c.vmax)); if (!best || d < best[0]) best = [d, v]; } return best[1]; };
-  const val2ang = (c, v) => c.k * v + c.b;
-  const grabGray = () => { const W = cv.width, H = cv.height, d = cx.getImageData(0, 0, W, H).data, g = new Float32Array(W * H); for (let i = 0; i < W * H; i++) g[i] = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]; return g; };
-  // barrido radial: la punta de la aguja es la línea que sale continua del eje y llega hasta la escala.
-  // La cola o contrapeso también es oscura, pero se corta antes: por eso se mide el alcance y no solo el contraste.
-  // La tolerancia lateral va en píxeles (no en grados) para soportar un centro estimado con algo de error.
-  const findNeedle = (c, g, hint) => {
-    const W = cv.width, H = cv.height, N = 720, K = 60, r0 = 0.10, r1 = 0.97;
-    const rf = Array.from({length: K}, (_, k) => r0 + (r1 - r0) * k / (K - 1)), rad = rf.map((f) => f * c.r);
-    const S = new Float32Array(N * K).fill(NaN);
-    for (let i = 0; i < N; i++) { const t = 2 * Math.PI * i / N, co = Math.cos(t), si = Math.sin(t); for (let k = 0; k < K; k++) { const x = Math.round(c.cx + co * rad[k]), y = Math.round(c.cy + si * rad[k]); if (x >= 0 && y >= 0 && x < W && y < H) S[i * K + k] = g[y * W + x]; } }
-    const med = (a) => { a = a.filter((v) => !isNaN(v)).sort((p, q) => p - q); return a.length ? a[a.length >> 1] : NaN; };
-    const band = []; for (let k = 0; k < K; k++) if (rf[k] >= 0.4 && rf[k] <= 0.75) for (let i = 0; i < N; i++) band.push(S[i * K + k]);
-    const face = med(band.slice()), mad = Math.max(6, med(band.map((v) => Math.abs(v - face))));
-    const base = new Float32Array(K); for (let k = 0; k < K; k++) { const col = []; for (let i = 0; i < N; i++) col.push(S[i * K + k]); const m = med(col); base[k] = Math.abs(m - face) < 0.25 * Math.max(face, 40) ? m : face; }
-    let dk = 0, lt = 0; for (let k = 0; k < K; k++) for (let i = 0; i < N; i++) { const d = S[i * K + k] - base[k]; if (d < -3 * mad) dk++; else if (d > 3 * mad) lt++; }
-    const pol = dk >= lt ? 1 : -1, thr = Math.max(22, 2.5 * mad);
-    const isN = new Uint8Array(N * K); for (let j = 0; j < N * K; j++) { const k = j % K; isN[j] = !isNaN(S[j]) && pol * (base[k] - S[j]) > thr ? 1 : 0; }
-    const tol = Math.max(3, 0.05 * c.r), isW = new Uint8Array(N * K);
-    for (let k = 0; k < K; k++) { const w = Math.max(1, Math.min(40, Math.ceil((tol / Math.max(rad[k], 1)) / (2 * Math.PI / N)))); for (let i = 0; i < N; i++) { if (!isN[i * K + k]) continue; for (let s = -w; s <= w; s++) isW[((i + s + N) % N) * K + k] = 1; } }
-    const reach = new Float32Array(N), mass = new Float32Array(N);
-    for (let i = 0; i < N; i++) { let miss = 0, last = -1, st = false; for (let k = 0; k < K; k++) { if (isW[i * K + k]) { last = k; st = true; miss = 0; } else if (rf[k] < 0.3 && !st) continue; else if (++miss > 1) break; } reach[i] = last < 0 ? 0 : rf[last]; let m = 0; for (let k = 0; k <= last; k++) m += isN[i * K + k]; mass[i] = m; }
-    const score = (i) => reach[i] * 10 + mass[i] / K, span = Math.abs(c.vmax - c.vmin), inR = (v) => v >= c.vmin - 0.12 * span && v <= c.vmax + 0.12 * span;
-    const order = Array.from(reach.keys()).sort((a, b) => score(b) - score(a)), cands = [];
-    for (const i of order) { const t = 2 * Math.PI * i / N, v = ang2val(c, t); if (!inR(v)) continue; if (cands.some((q) => Math.abs(((q.i - i + N + N / 2) % N) - N / 2) < 8)) continue; cands.push({i, t, v, reach: reach[i], s: score(i)}); if (cands.length >= 6) break; }
-    if (!cands.length) { const i = order[0], t = 2 * Math.PI * i / N; cands.push({i, t, v: ang2val(c, t), reach: reach[i], s: score(i)}); }
-    let top = cands[0];
-    // la estimación de la IA no elige la aguja: se usa solo como control independiente
-    const m = new Float32Array(N); for (let i = 0; i < N; i++) m[i] = reach[i] * mass[i];
-    profile = {m, pol}; return {t: top.t, v: top.v, cands, auto: true};
-  };
+        /* ---------- dibujo ---------- */
+        const fsz = () => Math.max(14, cv.width / 55);
+        const draw = (stage) => {
+          if (!src) return;
+          cx.drawImage(src, 0, 0, cv.width, cv.height);
+          const lw = Math.max(2, cv.width / 400);
+          if (R && stage >= 1)
+            for (const n of C
+              ? C.all
+              : (R.numeros || []).map((q) => ({
+                  p: [(q.x * cv.width) / 1000, (q.y * cv.height) / 1000],
+                  v: q.v,
+                }))) {
+              const used = C && C.used.includes(n);
+              cx.beginPath();
+              cx.arc(n.p[0], n.p[1], lw * 4, 0, 7);
+              cx.lineWidth = lw * 1.2;
+              cx.strokeStyle = used || !C ? '#3fd5f0' : 'rgba(150,150,150,.6)';
+              cx.stroke();
+            }
+          if (C && stage >= 2) {
+            cx.lineWidth = lw;
+            cx.strokeStyle = 'rgba(255,224,102,.85)';
+            cx.setLineDash([lw * 4, lw * 3]);
+            const a0 = val2ang(C, C.vmin),
+              a1 = val2ang(C, C.vmax);
+            cx.beginPath();
+            cx.arc(C.cx, C.cy, C.r, Math.min(a0, a1), Math.max(a0, a1));
+            cx.stroke();
+            cx.setLineDash([]);
+            cx.beginPath();
+            cx.arc(C.cx, C.cy, lw * 5, 0, 7);
+            cx.fillStyle = '#ffe066';
+            cx.fill();
+          }
+          if (C && stage === 3 && sweepAng != null) {
+            cx.save();
+            cx.translate(C.cx, C.cy);
+            cx.rotate(sweepAng);
+            const gr = cx.createLinearGradient(0, 0, C.r, 0);
+            gr.addColorStop(0, 'rgba(255,176,32,.0)');
+            gr.addColorStop(1, 'rgba(255,176,32,.9)');
+            cx.strokeStyle = gr;
+            cx.lineWidth = lw * 2.5;
+            cx.beginPath();
+            cx.moveTo(0, 0);
+            cx.lineTo(C.r * 0.95, 0);
+            cx.stroke();
+            cx.restore();
+          }
+          if (C && profile && stage >= 3) {
+            // perfil de contraste dibujado alrededor del dial
+            const N = profile.m.length,
+              mx = Math.max(...profile.m) || 1;
+            cx.beginPath();
+            for (let i = 0; i <= N; i++) {
+              const t = (2 * Math.PI * (i % N)) / N,
+                rr = C.r * (1.02 + (0.12 * Math.max(0, profile.m[i % N])) / mx);
+              const x = C.cx + Math.cos(t) * rr,
+                y = C.cy + Math.sin(t) * rr;
+              i ? cx.lineTo(x, y) : cx.moveTo(x, y);
+            }
+            cx.strokeStyle = 'rgba(255,176,32,.55)';
+            cx.lineWidth = lw;
+            cx.stroke();
+          }
+          if (C && needle && stage >= 4) {
+            const x = C.cx + Math.cos(needle.t) * C.r * 0.92,
+              y = C.cy + Math.sin(needle.t) * C.r * 0.92;
+            cx.lineWidth = lw * 2.4;
+            cx.strokeStyle = '#ff4d3d';
+            cx.beginPath();
+            cx.moveTo(C.cx, C.cy);
+            cx.lineTo(x, y);
+            cx.stroke();
+            cx.beginPath();
+            cx.arc(x, y, lw * 6, 0, 7);
+            cx.fillStyle = '#ff4d3d';
+            cx.fill();
+            cx.lineWidth = lw;
+            cx.strokeStyle = '#fff';
+            cx.stroke();
+          }
+        };
+        const setSrc = (el) => {
+          src = el;
+          const W = el.videoWidth || el.naturalWidth,
+            H = el.videoHeight || el.naturalHeight,
+            s = Math.min(1, 900 / Math.max(W, H));
+          cv.width = Math.round(W * s);
+          cv.height = Math.round(H * s);
+        };
 
-  /* ---------- dibujo ---------- */
-  const fsz = () => Math.max(14, cv.width / 55);
-  const draw = (stage) => {
-    if (!src) return;
-    cx.drawImage(src, 0, 0, cv.width, cv.height);
-    const lw = Math.max(2, cv.width / 400);
-    if (R && stage >= 1) for (const n of (C ? C.all : (R.numeros || []).map((q) => ({p: [q.x * cv.width / 1000, q.y * cv.height / 1000], v: q.v})))) {
-      const used = C && C.used.includes(n); cx.beginPath(); cx.arc(n.p[0], n.p[1], lw * 4, 0, 7); cx.lineWidth = lw * 1.2; cx.strokeStyle = used || !C ? '#3fd5f0' : 'rgba(150,150,150,.6)'; cx.stroke();
-    }
-    if (C && stage >= 2) {
-      cx.lineWidth = lw; cx.strokeStyle = 'rgba(255,224,102,.85)'; cx.setLineDash([lw * 4, lw * 3]);
-      const a0 = val2ang(C, C.vmin), a1 = val2ang(C, C.vmax); cx.beginPath(); cx.arc(C.cx, C.cy, C.r, Math.min(a0, a1), Math.max(a0, a1)); cx.stroke(); cx.setLineDash([]);
-      cx.beginPath(); cx.arc(C.cx, C.cy, lw * 5, 0, 7); cx.fillStyle = '#ffe066'; cx.fill();
-    }
-    if (C && stage === 3 && sweepAng != null) {
-      cx.save(); cx.translate(C.cx, C.cy); cx.rotate(sweepAng); const gr = cx.createLinearGradient(0, 0, C.r, 0); gr.addColorStop(0, 'rgba(255,176,32,.0)'); gr.addColorStop(1, 'rgba(255,176,32,.9)');
-      cx.strokeStyle = gr; cx.lineWidth = lw * 2.5; cx.beginPath(); cx.moveTo(0, 0); cx.lineTo(C.r * 0.95, 0); cx.stroke(); cx.restore();
-    }
-    if (C && profile && stage >= 3) { // perfil de contraste dibujado alrededor del dial
-      const N = profile.m.length, mx = Math.max(...profile.m) || 1; cx.beginPath();
-      for (let i = 0; i <= N; i++) { const t = 2 * Math.PI * (i % N) / N, rr = C.r * (1.02 + 0.12 * Math.max(0, profile.m[i % N]) / mx); const x = C.cx + Math.cos(t) * rr, y = C.cy + Math.sin(t) * rr; i ? cx.lineTo(x, y) : cx.moveTo(x, y); }
-      cx.strokeStyle = 'rgba(255,176,32,.55)'; cx.lineWidth = lw; cx.stroke();
-    }
-    if (C && needle && stage >= 4) {
-      const x = C.cx + Math.cos(needle.t) * C.r * 0.92, y = C.cy + Math.sin(needle.t) * C.r * 0.92;
-      cx.lineWidth = lw * 2.4; cx.strokeStyle = '#ff4d3d'; cx.beginPath(); cx.moveTo(C.cx, C.cy); cx.lineTo(x, y); cx.stroke();
-      cx.beginPath(); cx.arc(x, y, lw * 6, 0, 7); cx.fillStyle = '#ff4d3d'; cx.fill(); cx.lineWidth = lw; cx.strokeStyle = '#fff'; cx.stroke();
-    }
-  };
-  const setSrc = (el) => { src = el; const W = el.videoWidth || el.naturalWidth, H = el.videoHeight || el.naturalHeight, s = Math.min(1, 900 / Math.max(W, H)); cv.width = Math.round(W * s); cv.height = Math.round(H * s); };
+        /* ---------- lectura ---------- */
+        const unitOK = () =>
+          R &&
+          C &&
+          isFinite(R.escala_min) &&
+          isFinite(R.escala_max) &&
+          Math.abs(R.escala_max - C.vmax) <= 0.2 * Math.abs(C.vmax - C.vmin) + 1e-9;
+        const dec = () => {
+          const span = Math.abs(C.vmax - C.vmin);
+          return span <= 2 ? 2 : span <= 20 ? 1 : 0;
+        };
+        // si la aguja está antes del primer número impreso y más cerca del inicio de la escala, está en reposo en el tope
+        const atStop = () =>
+          R &&
+          C &&
+          needle &&
+          isFinite(R.escala_min) &&
+          R.escala_min < C.vmin &&
+          needle.v < C.vmin &&
+          needle.v - R.escala_min < 0.6 * (C.vmin - R.escala_min);
+        const readV = () => {
+          if (atStop()) return R.escala_min;
+          const v = needle.v,
+            s = Math.abs(C.vmax - C.vmin);
+          return v < C.vmin && C.vmin - v < 0.05 * s
+            ? C.vmin
+            : v > C.vmax && v - C.vmax < 0.05 * s
+              ? C.vmax
+              : v;
+        };
+        const showRead = () => {
+          if (!C || !needle) return;
+          const v = readV();
+          $('val').textContent = nf(v, dec());
+          $('unit').textContent = unitOK() ? R.unidad || '' : '(escala elegida)';
+          const lo = parseFloat($('lo').value),
+            hi = parseFloat($('hi').value),
+            L = $('lim');
+          if (isFinite(lo) || isFinite(hi)) {
+            L.hidden = false;
+            if (isFinite(hi) && v > hi) {
+              L.className = 'lim hi';
+              L.textContent = 'ALTA';
+            } else if (isFinite(lo) && v < lo) {
+              L.className = 'lim lo';
+              L.textContent = 'BAJA';
+            } else {
+              L.className = 'lim ok';
+              L.textContent = 'NORMAL';
+            }
+          } else L.hidden = true;
+        };
+        const showMeta = () => {
+          $('k-ins').textContent = R?.instrumento || '—';
+          $('k-rng').textContent = C
+            ? `${nf(C.vmin, dec())} a ${nf(C.vmax, dec())} ${unitOK() ? R.unidad || '' : ''}`
+            : '—';
+          $('k-num').textContent = C
+            ? `${C.used.length} de ${C.all.length} en la escala principal`
+            : R?.numeros?.length
+              ? `${R.numeros.length}`
+              : '—';
+          $('k-fit').textContent = C
+            ? `desvío mediano ±${nf(C.med / Math.abs(C.k), Math.abs(C.med / C.k) < 1 ? 2 : 1)} en la escala`
+            : '—';
+          const ag = $('agree');
+          if (C && needle && isFinite(R?.valor_estimado)) {
+            const span = Math.abs(C.vmax - C.vmin),
+              v = readV(),
+              d = Math.abs(v - R.valor_estimado),
+              ok = d <= 0.06 * span;
+            ag.innerHTML =
+              (ok
+                ? `<b class="ok">Coinciden.</b> La IA estimó ${nf(R.valor_estimado, dec())} por su cuenta.`
+                : `<b class="no">No coinciden.</b> La IA estimó ${nf(R.valor_estimado, dec())} y la geometría ${nf(v, dec())}. Revisa la punta roja: si no está sobre la aguja, corrígela abajo.`) +
+              (atStop()
+                ? ` <br>La aguja está en reposo, antes de la primera marca impresa: se informa ${nf(R.escala_min, dec())}.`
+                : '');
+          } else
+            ag.textContent = R?.problemas
+              ? `Observación de la IA: ${R.problemas}`
+              : 'La IA no entregó una estimación propia para comparar.';
+        };
+        const run = async (result, animate = true) => {
+          R = result;
+          C = null;
+          needle = null;
+          profile = null;
+          if (!R || !(R.numeros || []).length) {
+            step(1);
+            draw(0);
+            $('val').textContent = '—';
+            $('agree').textContent = R?.problemas || 'No se encontró una escala de aguja en la foto.';
+            showMeta();
+            return;
+          }
+          step(1);
+          draw(1);
+          if (animate) await wait(700);
+          if (R !== result) return;
+          C = calibrate(R.numeros, cv.width, cv.height);
+          if (!C) {
+            $('agree').textContent = 'No alcanzó para ajustar el dial con los números leídos.';
+            showMeta();
+            return;
+          }
+          step(2);
+          draw(2);
+          if (animate) await wait(700);
+          if (R !== result) return;
+          gray = (() => {
+            cx.drawImage(src, 0, 0, cv.width, cv.height);
+            return grabGray();
+          })();
+          needle = findNeedle(C, gray, R.valor_estimado);
+          step(3);
+          if (animate) {
+            const t0 = performance.now();
+            await new Promise((ok) => {
+              const f = (now) => {
+                if (R !== result || !needle) return ok();
+                const k = Math.min(1, (now - t0) / 1100);
+                sweepAng = needle.t - 2 * Math.PI * (1 - k) ** 2;
+                draw(3);
+                k < 1 ? requestAnimationFrame(f) : ok();
+              };
+              requestAnimationFrame(f);
+            });
+          }
+          if (R !== result) return;
+          sweepAng = null;
+          step(4);
+          auto0 = {...needle};
+          ci = 0;
+          hand = false;
+          $('f-hand').classList.remove('hand');
+          draw(4);
+          showRead();
+          showMeta();
+          showFix();
+          $('hint').textContent = 'Si la punta roja no está sobre la aguja, usa «¿La lectura está mal?»';
+        };
+        /* ---------- corrección: invertir, otra candidata o a mano, mostrando el error de la lectura automática ---------- */
+        let auto0 = null,
+          ci = 0,
+          hand = false;
+        const showFix = () => {
+          $('fix').hidden = !(C && needle);
+          if (!auto0 || !needle) return;
+          const changed = Math.abs(needle.t - auto0.t) > 1e-6;
+          $('f-reset').hidden = !changed;
+          $('fix-e').hidden = !changed;
+          if (changed) {
+            const a = atStopV(auto0),
+              b = readV(),
+              e = a - b,
+              span = Math.abs(C.vmax - C.vmin);
+            $('fix-e').innerHTML =
+              `Automática ${nf(a, dec())} → corregida ${nf(b, dec())}<br>Error de la automática: <b>${e > 0 ? '+' : ''}${nf(e, dec())}</b> (${nf((Math.abs(e) / span) * 100, 0)} % de la escala)`;
+          }
+        };
+        const atStopV = (n) => {
+          const s = needle;
+          needle = n;
+          const v = readV();
+          needle = s;
+          return v;
+        };
+        const setNeedle = (t) => {
+          needle = {...needle, t, v: ang2val(C, t), auto: false};
+          draw(4);
+          showRead();
+          showMeta();
+          showFix();
+        };
+        $('f-flip').onclick = () => {
+          if (!C || !needle) return;
+          const t = needle.t + Math.PI,
+            opp = (auto0.cands || []).find(
+              (q) => Math.abs(((((q.t - t) % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI)) - Math.PI) < 0.35
+            );
+          setNeedle(opp ? opp.t : t);
+        };
+        $('f-next').onclick = () => {
+          if (!C || !auto0?.cands?.length) return;
+          ci = (ci + 1) % auto0.cands.length;
+          setNeedle(auto0.cands[ci].t);
+        };
+        $('f-hand').onclick = () => {
+          hand = !hand;
+          $('f-hand').classList.toggle('hand', hand);
+          $('hint').textContent = hand
+            ? 'Toca o arrastra sobre la foto hasta la punta de la aguja'
+            : 'Si la punta roja no está sobre la aguja, usa «¿La lectura está mal?»';
+        };
+        $('f-reset').onclick = () => {
+          if (auto0) {
+            needle = {...auto0};
+            ci = 0;
+            draw(4);
+            showRead();
+            showMeta();
+            showFix();
+          }
+        };
 
-  /* ---------- lectura ---------- */
-  const unitOK = () => R && C && isFinite(R.escala_min) && isFinite(R.escala_max) && Math.abs(R.escala_max - C.vmax) <= 0.2 * Math.abs(C.vmax - C.vmin) + 1e-9;
-  const dec = () => { const span = Math.abs(C.vmax - C.vmin); return span <= 2 ? 2 : span <= 20 ? 1 : 0; };
-  // si la aguja está antes del primer número impreso y más cerca del inicio de la escala, está en reposo en el tope
-  const atStop = () => R && C && needle && isFinite(R.escala_min) && R.escala_min < C.vmin && needle.v < C.vmin && (needle.v - R.escala_min) < 0.6 * (C.vmin - R.escala_min);
-  const readV = () => { if (atStop()) return R.escala_min; const v = needle.v, s = Math.abs(C.vmax - C.vmin); return v < C.vmin && C.vmin - v < 0.05 * s ? C.vmin : v > C.vmax && v - C.vmax < 0.05 * s ? C.vmax : v; };
-  const showRead = () => {
-    if (!C || !needle) return;
-    const v = readV(); $('val').textContent = nf(v, dec()); $('unit').textContent = unitOK() ? R.unidad || '' : '(escala elegida)';
-    const lo = parseFloat($('lo').value), hi = parseFloat($('hi').value), L = $('lim');
-    if (isFinite(lo) || isFinite(hi)) { L.hidden = false; if (isFinite(hi) && v > hi) { L.className = 'lim hi'; L.textContent = 'ALTA'; } else if (isFinite(lo) && v < lo) { L.className = 'lim lo'; L.textContent = 'BAJA'; } else { L.className = 'lim ok'; L.textContent = 'NORMAL'; } } else L.hidden = true;
-  };
-  const showMeta = () => {
-    $('k-ins').textContent = R?.instrumento || '—';
-    $('k-rng').textContent = C ? `${nf(C.vmin, dec())} a ${nf(C.vmax, dec())} ${unitOK() ? R.unidad || '' : ''}` : '—';
-    $('k-num').textContent = C ? `${C.used.length} de ${C.all.length} en la escala principal` : (R?.numeros?.length ? `${R.numeros.length}` : '—');
-    $('k-fit').textContent = C ? `desvío mediano ±${nf(C.med / Math.abs(C.k), Math.abs(C.med / C.k) < 1 ? 2 : 1)} en la escala` : '—';
-    const ag = $('agree');
-    if (C && needle && isFinite(R?.valor_estimado)) {
-      const span = Math.abs(C.vmax - C.vmin), v = readV(), d = Math.abs(v - R.valor_estimado), ok = d <= 0.06 * span;
-      ag.innerHTML = (ok ? `<b class="ok">Coinciden.</b> La IA estimó ${nf(R.valor_estimado, dec())} por su cuenta.` : `<b class="no">No coinciden.</b> La IA estimó ${nf(R.valor_estimado, dec())} y la geometría ${nf(v, dec())}. Revisa la punta roja: si no está sobre la aguja, corrígela abajo.`) + (atStop() ? ` <br>La aguja está en reposo, antes de la primera marca impresa: se informa ${nf(R.escala_min, dec())}.` : '');
-    } else ag.textContent = R?.problemas ? `Observación de la IA: ${R.problemas}` : 'La IA no entregó una estimación propia para comparar.';
-  };
-  const run = async (result, animate = true) => {
-    R = result; C = null; needle = null; profile = null;
-    if (!R || !(R.numeros || []).length) { step(1); draw(0); $('val').textContent = '—'; $('agree').textContent = R?.problemas || 'No se encontró una escala de aguja en la foto.'; showMeta(); return; }
-    step(1); draw(1); if (animate) await wait(700);
-    if (R !== result) return;
-    C = calibrate(R.numeros, cv.width, cv.height); if (!C) { $('agree').textContent = 'No alcanzó para ajustar el dial con los números leídos.'; showMeta(); return; }
-    step(2); draw(2); if (animate) await wait(700);
-    if (R !== result) return;
-    gray = (() => { cx.drawImage(src, 0, 0, cv.width, cv.height); return grabGray(); })();
-    needle = findNeedle(C, gray, R.valor_estimado);
-    step(3);
-    if (animate) { const t0 = performance.now(); await new Promise((ok) => { const f = (now) => { if (R !== result || !needle) return ok(); const k = Math.min(1, (now - t0) / 1100); sweepAng = needle.t - 2 * Math.PI * (1 - k) ** 2; draw(3); k < 1 ? requestAnimationFrame(f) : ok(); }; requestAnimationFrame(f); }); }
-    if (R !== result) return;
-    sweepAng = null; step(4); auto0 = {...needle}; ci = 0; hand = false; $('f-hand').classList.remove('hand'); draw(4); showRead(); showMeta(); showFix();
-    $('hint').textContent = 'Si la punta roja no está sobre la aguja, usa «¿La lectura está mal?»';
-  };
-  /* ---------- corrección: invertir, otra candidata o a mano, mostrando el error de la lectura automática ---------- */
-  let auto0 = null, ci = 0, hand = false;
-  const showFix = () => {
-    $('fix').hidden = !(C && needle); if (!auto0 || !needle) return;
-    const changed = Math.abs(needle.t - auto0.t) > 1e-6; $('f-reset').hidden = !changed; $('fix-e').hidden = !changed;
-    if (changed) { const a = atStopV(auto0), b = readV(), e = a - b, span = Math.abs(C.vmax - C.vmin); $('fix-e').innerHTML = `Automática ${nf(a, dec())} → corregida ${nf(b, dec())}<br>Error de la automática: <b>${e > 0 ? '+' : ''}${nf(e, dec())}</b> (${nf(Math.abs(e) / span * 100, 0)} % de la escala)`; }
-  };
-  const atStopV = (n) => { const s = needle; needle = n; const v = readV(); needle = s; return v; };
-  const setNeedle = (t) => { needle = {...needle, t, v: ang2val(C, t), auto: false}; draw(4); showRead(); showMeta(); showFix(); };
-  $('f-flip').onclick = () => { if (!C || !needle) return; const t = needle.t + Math.PI, opp = (auto0.cands || []).find((q) => Math.abs(((q.t - t) % (2 * Math.PI) + 3 * Math.PI) % (2 * Math.PI) - Math.PI) < 0.35); setNeedle(opp ? opp.t : t); };
-  $('f-next').onclick = () => { if (!C || !auto0?.cands?.length) return; ci = (ci + 1) % auto0.cands.length; setNeedle(auto0.cands[ci].t); };
-  $('f-hand').onclick = () => { hand = !hand; $('f-hand').classList.toggle('hand', hand); $('hint').textContent = hand ? 'Toca o arrastra sobre la foto hasta la punta de la aguja' : 'Si la punta roja no está sobre la aguja, usa «¿La lectura está mal?»'; };
-  $('f-reset').onclick = () => { if (auto0) { needle = {...auto0}; ci = 0; draw(4); showRead(); showMeta(); showFix(); } };
+        /* ---------- fuentes de imagen ---------- */
+        const loadImg = (u) =>
+          new Promise((ok, ko) => {
+            const i = new Image();
+            i.onload = () => ok(i);
+            i.onerror = ko;
+            i.src = u;
+          });
+        $('thumbs').addEventListener('click', async (e) => {
+          const b = e.target.closest('button');
+          if (!b) return;
+          stopLive();
+          [...$('thumbs').children].forEach((t) => t.classList.toggle('on', t === b));
+          const s = SAMPLES[+b.dataset.i];
+          setSrc(await loadImg(s.img));
+          $('hint').textContent = 'Lectura de la escala guardada de la IA';
+          run(s.result);
+        });
+        const askNV = async (canvasEl) => {
+          let q = 0.88,
+            data = canvasEl.toDataURL('image/jpeg', q);
+          while (data.length > 1_500_000 && q > 0.4) {
+            q -= 0.1;
+            data = canvasEl.toDataURL('image/jpeg', q);
+          }
+          const r = await fetch(NV + '/gauge', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({image: data}),
+          });
+          const d = await r.json();
+          if (!r.ok || !d.ok) throw new Error(d.error || 'sin respuesta');
+          return d.result;
+        };
+        $('file').addEventListener('change', async (e) => {
+          const f = e.target.files[0];
+          if (!f) return;
+          stopLive();
+          [...$('thumbs').children].forEach((t) => t.classList.remove('on'));
+          setSrc(await loadImg(URL.createObjectURL(f)));
+          R = C = needle = null;
+          draw(0);
+          step(1);
+          $('hint').textContent = 'Nemotron VL leyendo la escala…';
+          const c = document.createElement('canvas');
+          const s = Math.min(1, 1280 / Math.max(src.naturalWidth, src.naturalHeight));
+          c.width = src.naturalWidth * s;
+          c.height = src.naturalHeight * s;
+          c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+          try {
+            run(await askNV(c));
+          } catch (err) {
+            $('hint').textContent = 'No se pudo leer: ' + err.message;
+          }
+        });
 
-  /* ---------- fuentes de imagen ---------- */
-  const loadImg = (u) => new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = u; });
-  $('thumbs').addEventListener('click', async (e) => { const b = e.target.closest('button'); if (!b) return; stopLive(); [...$('thumbs').children].forEach((t) => t.classList.toggle('on', t === b)); const s = SAMPLES[+b.dataset.i]; setSrc(await loadImg(s.img)); $('hint').textContent = 'Lectura de la escala guardada de la IA'; run(s.result); });
-  const askNV = async (canvasEl) => {
-    let q = 0.88, data = canvasEl.toDataURL('image/jpeg', q); while (data.length > 1_500_000 && q > 0.4) { q -= 0.1; data = canvasEl.toDataURL('image/jpeg', q); }
-    const r = await fetch(NV + '/gauge', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({image: data})}); const d = await r.json();
-    if (!r.ok || !d.ok) throw new Error(d.error || 'sin respuesta'); return d.result;
-  };
-  $('file').addEventListener('change', async (e) => {
-    const f = e.target.files[0]; if (!f) return; stopLive(); [...$('thumbs').children].forEach((t) => t.classList.remove('on'));
-    setSrc(await loadImg(URL.createObjectURL(f))); R = C = needle = null; draw(0); step(1); $('hint').textContent = 'Nemotron VL leyendo la escala…';
-    const c = document.createElement('canvas'); const s = Math.min(1, 1280 / Math.max(src.naturalWidth, src.naturalHeight)); c.width = src.naturalWidth * s; c.height = src.naturalHeight * s; c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
-    try { run(await askNV(c)); } catch (err) { $('hint').textContent = 'No se pudo leer: ' + err.message; }
-  });
+        /* ---------- cámara fija: la IA calibra una vez, la aguja se sigue en cada cuadro ---------- */
+        const stopLive = () => {
+          live = false;
+          if (stream) stream.getTracks().forEach((t) => t.stop());
+          stream = null;
+          $('b-live').classList.remove('on');
+          $('b-live').textContent = 'Cámara fija';
+          $('b-cal').hidden = true;
+          $('cal-help').hidden = true;
+        };
+        $('b-live').onclick = async () => {
+          if (live) return stopLive();
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: {facingMode: 'environment', width: {ideal: 1280}},
+              audio: false,
+            });
+          } catch (e) {
+            $('hint').textContent = 'Permite el uso de la cámara';
+            return;
+          }
+          vid.srcObject = stream;
+          await vid.play();
+          setSrc(vid);
+          live = true;
+          R = C = needle = null;
+          $('b-live').classList.add('on');
+          $('b-live').textContent = 'Detener cámara';
+          $('b-cal').hidden = false;
+          $('cal-help').hidden = false;
+          $('fix').hidden = true;
+          $('hint').textContent = 'Encuadra el instrumento de frente y presiona Calibrar';
+          let last = 0;
+          const loop = (now) => {
+            if (!live) return;
+            requestAnimationFrame(loop);
+            cx.drawImage(vid, 0, 0, cv.width, cv.height);
+            if (C && now - last > 120) {
+              last = now;
+              gray = grabGray();
+              const prev = needle ? needle.v : R.valor_estimado;
+              needle = findNeedle(C, gray, prev);
+              showRead();
+              if (!log.length || Date.now() - log[log.length - 1].t > 2000) addLog(readV());
+            }
+            draw(C ? 4 : 0);
+          };
+          requestAnimationFrame(loop);
+        };
+        $('b-cal').onclick = async () => {
+          const c = document.createElement('canvas');
+          c.width = cv.width;
+          c.height = cv.height;
+          c.getContext('2d').drawImage(vid, 0, 0, c.width, c.height);
+          $('hint').textContent = 'Nemotron VL leyendo la escala…';
+          $('b-cal').disabled = true;
+          try {
+            R = await askNV(c);
+            const n = (R.numeros || []).length;
+            C = calibrate(R.numeros || [], cv.width, cv.height);
+            showMeta();
+            step(C ? 4 : 1);
+            if (C) {
+              $('hint').textContent =
+                `Calibrado con ${C.used.length} números: la aguja se sigue en tu equipo`;
+              auto0 = null;
+            } else
+              $('hint').textContent =
+                n < 3
+                  ? `La IA leyó ${n} ${n === 1 ? 'número' : 'números'} de la escala y necesito al menos 3. Acércate, evita reflejos y deja el dial completo en el cuadro.`
+                  : `La IA leyó ${n} números pero no forman un dial coherente (¿dos escalas o foto muy en ángulo?). Ponte de frente al instrumento.`;
+          } catch (err) {
+            $('hint').textContent = 'No se pudo calibrar: ' + err.message;
+          } finally {
+            $('b-cal').disabled = false;
+          }
+        };
 
-  /* ---------- cámara fija: la IA calibra una vez, la aguja se sigue en cada cuadro ---------- */
-  const stopLive = () => { live = false; if (stream) stream.getTracks().forEach((t) => t.stop()); stream = null; $('b-live').classList.remove('on'); $('b-live').textContent = 'Cámara fija'; $('b-cal').hidden = true; $('cal-help').hidden = true; };
-  $('b-live').onclick = async () => {
-    if (live) return stopLive();
-    try { stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment', width: {ideal: 1280}}, audio: false}); } catch (e) { $('hint').textContent = 'Permite el uso de la cámara'; return; }
-    vid.srcObject = stream; await vid.play(); setSrc(vid); live = true; R = C = needle = null; $('b-live').classList.add('on'); $('b-live').textContent = 'Detener cámara'; $('b-cal').hidden = false; $('cal-help').hidden = false; $('fix').hidden = true; $('hint').textContent = 'Encuadra el instrumento de frente y presiona Calibrar';
-    let last = 0;
-    const loop = (now) => {
-      if (!live) return; requestAnimationFrame(loop);
-      cx.drawImage(vid, 0, 0, cv.width, cv.height);
-      if (C && now - last > 120) { last = now; gray = grabGray(); const prev = needle ? needle.v : R.valor_estimado; needle = findNeedle(C, gray, prev); showRead(); if (!log.length || Date.now() - log[log.length - 1].t > 2000) addLog(readV()); }
-      draw(C ? 4 : 0);
-    };
-    requestAnimationFrame(loop);
-  };
-  $('b-cal').onclick = async () => {
-    const c = document.createElement('canvas'); c.width = cv.width; c.height = cv.height; c.getContext('2d').drawImage(vid, 0, 0, c.width, c.height);
-    $('hint').textContent = 'Nemotron VL leyendo la escala…'; $('b-cal').disabled = true;
-    try {
-      R = await askNV(c); const n = (R.numeros || []).length; C = calibrate(R.numeros || [], cv.width, cv.height); showMeta(); step(C ? 4 : 1);
-      if (C) { $('hint').textContent = `Calibrado con ${C.used.length} números: la aguja se sigue en tu equipo`; auto0 = null; }
-      else $('hint').textContent = n < 3 ? `La IA leyó ${n} ${n === 1 ? 'número' : 'números'} de la escala y necesito al menos 3. Acércate, evita reflejos y deja el dial completo en el cuadro.` : `La IA leyó ${n} números pero no forman un dial coherente (¿dos escalas o foto muy en ángulo?). Ponte de frente al instrumento.`;
-    }
-    catch (err) { $('hint').textContent = 'No se pudo calibrar: ' + err.message; } finally { $('b-cal').disabled = false; }
-  };
+        /* ---------- corrección manual: arrastrar la punta ---------- */
+        const toCanvas = (e) => {
+          const r = cv.getBoundingClientRect();
+          return [((e.clientX - r.left) * cv.width) / r.width, ((e.clientY - r.top) * cv.height) / r.height];
+        };
+        cv.addEventListener('pointerdown', (e) => {
+          if (!C || !needle) return;
+          const [x, y] = toCanvas(e),
+            tx = C.cx + Math.cos(needle.t) * C.r * 0.92,
+            ty = C.cy + Math.sin(needle.t) * C.r * 0.92;
+          if (hand || Math.hypot(x - tx, y - ty) < Math.max(30, cv.width / 20)) {
+            dragging = true;
+            cv.setPointerCapture(e.pointerId);
+            if (hand) {
+              const t = Math.atan2(y - C.cy, x - C.cx);
+              setNeedle(t);
+            }
+          }
+        });
+        cv.addEventListener('pointermove', (e) => {
+          if (!dragging) return;
+          const [x, y] = toCanvas(e);
+          const t = Math.atan2(y - C.cy, x - C.cx);
+          needle = {...needle, t, v: ang2val(C, t), auto: false};
+          if (!live) draw(4);
+          showRead();
+          showMeta();
+          showFix();
+        });
+        cv.addEventListener('pointerup', () => {
+          dragging = false;
+        });
 
-  /* ---------- corrección manual: arrastrar la punta ---------- */
-  const toCanvas = (e) => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * cv.width / r.width, (e.clientY - r.top) * cv.height / r.height]; };
-  cv.addEventListener('pointerdown', (e) => { if (!C || !needle) return; const [x, y] = toCanvas(e), tx = C.cx + Math.cos(needle.t) * C.r * 0.92, ty = C.cy + Math.sin(needle.t) * C.r * 0.92; if (hand || Math.hypot(x - tx, y - ty) < Math.max(30, cv.width / 20)) { dragging = true; cv.setPointerCapture(e.pointerId); if (hand) { const t = Math.atan2(y - C.cy, x - C.cx); setNeedle(t); } } });
-  cv.addEventListener('pointermove', (e) => { if (!dragging) return; const [x, y] = toCanvas(e); const t = Math.atan2(y - C.cy, x - C.cx); needle = {...needle, t, v: ang2val(C, t), auto: false}; if (!live) draw(4); showRead(); showMeta(); showFix(); });
-  cv.addEventListener('pointerup', () => { dragging = false; });
-
-  /* ---------- registro y tendencia ---------- */
-  const tr = $('trend'), tx = tr.getContext('2d');
-  const addLog = (v) => { log.push({t: Date.now(), v}); log = log.slice(-120); $('n-log').textContent = `${log.length} ${log.length === 1 ? 'lectura' : 'lecturas'}`; drawTrend(); };
-  const drawTrend = () => {
-    const d = devicePixelRatio || 1, W = tr.clientWidth, H = 140; tr.width = W * d; tr.height = H * d; tx.setTransform(d, 0, 0, d, 0, 0); tx.clearRect(0, 0, W, H);
-    tx.strokeStyle = '#252a33'; tx.lineWidth = 1; for (let i = 1; i < 4; i++) { tx.beginPath(); tx.moveTo(0, H * i / 4); tx.lineTo(W, H * i / 4); tx.stroke(); }
-    if (!log.length) { tx.fillStyle = '#959cab'; tx.font = '12px IBM Plex Mono, monospace'; tx.fillText('Sin lecturas todavía', 10, 20); return; }
-    const vs = log.map((p) => p.v), lo = parseFloat($('lo').value), hi = parseFloat($('hi').value);
-    let a = Math.min(...vs, isFinite(lo) ? lo : Infinity), b = Math.max(...vs, isFinite(hi) ? hi : -Infinity); if (a === b) { a -= 1; b += 1; } const pad = (b - a) * 0.15; a -= pad; b += pad;
-    const Y = (v) => H - 8 - (v - a) / (b - a) * (H - 16), X = (i) => log.length === 1 ? W / 2 : 8 + i * (W - 16) / (log.length - 1);
-    [[lo, '#ff4d3d'], [hi, '#ff4d3d']].forEach(([v, c]) => { if (isFinite(v)) { tx.strokeStyle = c; tx.setLineDash([5, 4]); tx.beginPath(); tx.moveTo(0, Y(v)); tx.lineTo(W, Y(v)); tx.stroke(); tx.setLineDash([]); } });
-    tx.strokeStyle = '#ffb020'; tx.lineWidth = 2; tx.beginPath(); log.forEach((p, i) => (i ? tx.lineTo(X(i), Y(p.v)) : tx.moveTo(X(i), Y(p.v)))); tx.stroke();
-    log.forEach((p, i) => { tx.beginPath(); tx.arc(X(i), Y(p.v), 3, 0, 7); tx.fillStyle = (isFinite(hi) && p.v > hi) || (isFinite(lo) && p.v < lo) ? '#ff4d3d' : '#ffb020'; tx.fill(); });
-    tx.fillStyle = '#959cab'; tx.font = '11px IBM Plex Mono, monospace'; tx.fillText(nf(b - pad, 1), 4, 12); tx.fillText(nf(a + pad, 1), 4, H - 4);
-  };
-  $('b-log').onclick = () => { if (needle) addLog(readV()); };
-  ['lo', 'hi'].forEach((id) => $(id).addEventListener('input', () => { showRead(); drawTrend(); }));
-  addEventListener('resize', drawTrend); drawTrend();
-  // arranca con el primer ejemplo
-  $('thumbs').firstElementChild?.click();
-})();
-</script>
-</body>
+        /* ---------- registro y tendencia ---------- */
+        const tr = $('trend'),
+          tx = tr.getContext('2d');
+        const addLog = (v) => {
+          log.push({t: Date.now(), v});
+          log = log.slice(-120);
+          $('n-log').textContent = `${log.length} ${log.length === 1 ? 'lectura' : 'lecturas'}`;
+          drawTrend();
+        };
+        const drawTrend = () => {
+          const d = devicePixelRatio || 1,
+            W = tr.clientWidth,
+            H = 140;
+          tr.width = W * d;
+          tr.height = H * d;
+          tx.setTransform(d, 0, 0, d, 0, 0);
+          tx.clearRect(0, 0, W, H);
+          tx.strokeStyle = '#252a33';
+          tx.lineWidth = 1;
+          for (let i = 1; i < 4; i++) {
+            tx.beginPath();
+            tx.moveTo(0, (H * i) / 4);
+            tx.lineTo(W, (H * i) / 4);
+            tx.stroke();
+          }
+          if (!log.length) {
+            tx.fillStyle = '#959cab';
+            tx.font = '12px IBM Plex Mono, monospace';
+            tx.fillText('Sin lecturas todavía', 10, 20);
+            return;
+          }
+          const vs = log.map((p) => p.v),
+            lo = parseFloat($('lo').value),
+            hi = parseFloat($('hi').value);
+          let a = Math.min(...vs, isFinite(lo) ? lo : Infinity),
+            b = Math.max(...vs, isFinite(hi) ? hi : -Infinity);
+          if (a === b) {
+            a -= 1;
+            b += 1;
+          }
+          const pad = (b - a) * 0.15;
+          a -= pad;
+          b += pad;
+          const Y = (v) => H - 8 - ((v - a) / (b - a)) * (H - 16),
+            X = (i) => (log.length === 1 ? W / 2 : 8 + (i * (W - 16)) / (log.length - 1));
+          [
+            [lo, '#ff4d3d'],
+            [hi, '#ff4d3d'],
+          ].forEach(([v, c]) => {
+            if (isFinite(v)) {
+              tx.strokeStyle = c;
+              tx.setLineDash([5, 4]);
+              tx.beginPath();
+              tx.moveTo(0, Y(v));
+              tx.lineTo(W, Y(v));
+              tx.stroke();
+              tx.setLineDash([]);
+            }
+          });
+          tx.strokeStyle = '#ffb020';
+          tx.lineWidth = 2;
+          tx.beginPath();
+          log.forEach((p, i) => (i ? tx.lineTo(X(i), Y(p.v)) : tx.moveTo(X(i), Y(p.v))));
+          tx.stroke();
+          log.forEach((p, i) => {
+            tx.beginPath();
+            tx.arc(X(i), Y(p.v), 3, 0, 7);
+            tx.fillStyle = (isFinite(hi) && p.v > hi) || (isFinite(lo) && p.v < lo) ? '#ff4d3d' : '#ffb020';
+            tx.fill();
+          });
+          tx.fillStyle = '#959cab';
+          tx.font = '11px IBM Plex Mono, monospace';
+          tx.fillText(nf(b - pad, 1), 4, 12);
+          tx.fillText(nf(a + pad, 1), 4, H - 4);
+        };
+        $('b-log').onclick = () => {
+          if (needle) addLog(readV());
+        };
+        ['lo', 'hi'].forEach((id) =>
+          $(id).addEventListener('input', () => {
+            showRead();
+            drawTrend();
+          })
+        );
+        addEventListener('resize', drawTrend);
+        drawTrend();
+        // arranca con el primer ejemplo
+        $('thumbs').firstElementChild?.click();
+      })();
+    </script>
+  </body>
 </html>
